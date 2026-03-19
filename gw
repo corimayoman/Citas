@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# gw — Git Workflow CLI
+#
+# Usage:
+#   gw start <branch>     Start a new request branch
+#   gw push               Sync, validate, and push current branch
+#   gw sync               Re-sync current branch with base (no push)
+#   gw promote <target>   Promote code: qa | prod | hotfix
+#   gw validate           Run validations only
+#   gw status             Show workflow state
+#   gw pr                 Open a pull request (requires GitHub CLI)
+#   gw help               Show this help
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+WORKFLOW_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.workflow" && pwd)"
+
+CMD="${1:-help}"
+shift || true
+
+case "$CMD" in
+  start)    bash "$WORKFLOW_DIR/start.sh" "$@" ;;
+  push)     bash "$WORKFLOW_DIR/push.sh" "$@" ;;
+  sync)     bash "$WORKFLOW_DIR/sync.sh" "$@" ;;
+  promote)  bash "$WORKFLOW_DIR/promote.sh" "$@" ;;
+  validate) bash "$WORKFLOW_DIR/validate.sh" "$@" ;;
+  status)   bash "$WORKFLOW_DIR/status.sh" "$@" ;;
+
+  pr)
+    if ! command -v gh &>/dev/null; then
+      echo "GitHub CLI (gh) not installed. Install from: https://cli.github.com"
+      exit 1
+    fi
+    CURRENT=$(git rev-parse --abbrev-ref HEAD)
+    BASE=$(echo "$CURRENT" | grep -q "^hotfix/" && echo "main" || echo "qa")
+    gh pr create --base "$BASE" --fill
+    ;;
+
+  help|--help|-h|"")
+    echo ""
+    echo "  gw — Git Workflow CLI"
+    echo ""
+    echo "  Commands:"
+    echo "    start <type>/<name>   Start a new request branch"
+    echo "    push                  Sync, validate, and push"
+    echo "    sync                  Re-sync with base branch"
+    echo "    promote qa            Merge feature → qa"
+    echo "    promote prod          Promote qa → main (release)"
+    echo "    promote hotfix        Merge hotfix → main + qa"
+    echo "    validate              Run checks only"
+    echo "    status                Show workflow state"
+    echo "    pr                    Open PR (requires gh CLI)"
+    echo ""
+    echo "  Branch types:  feature/  fix/  hotfix/  chore/  docs/"
+    echo ""
+    echo "  Examples:"
+    echo "    gw start feature/add-mfa"
+    echo "    gw start fix/GCO-42-login-bug"
+    echo "    gw start hotfix/payment-crash"
+    echo "    gw push"
+    echo "    gw promote qa"
+    echo "    gw promote prod"
+    echo ""
+    ;;
+
+  *)
+    echo "Unknown command: $CMD"
+    echo "Run 'gw help' for usage."
+    exit 1
+    ;;
+esac

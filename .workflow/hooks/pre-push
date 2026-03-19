@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# pre-push hook — Last safety check before git push executes
+# This runs when git push is called directly (not via gw push)
+# ─────────────────────────────────────────────────────────────────────────────
+
+WORKFLOW_DIR="$(git rev-parse --show-toplevel)/.workflow"
+source "$WORKFLOW_DIR/config.sh"
+
+CURRENT=$(git rev-parse --abbrev-ref HEAD)
+REMOTE_NAME="$1"
+
+# Block force-push to protected branches (allow --force-with-lease from gw push)
+if [[ "$CURRENT" == "$PROD_BRANCH" || "$CURRENT" == "$QA_BRANCH" ]]; then
+  # Read stdin to check if it's a force push
+  while read local_ref local_sha remote_ref remote_sha; do
+    if [[ "$local_sha" != "$remote_sha" ]] && git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+      : # fast-forward, ok
+    elif [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
+      : # new branch, ok
+    else
+      error "Force-push to protected branch '$CURRENT' is not allowed."
+      error "Use 'gw promote' to update protected branches."
+      exit 1
+    fi
+  done
+fi
+
+exit 0

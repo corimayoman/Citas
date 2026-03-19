@@ -1,0 +1,459 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  OPERATOR
+  ADMIN
+  COMPLIANCE_OFFICER
+}
+
+enum IntegrationType {
+  OFFICIAL_API
+  AUTHORIZED_INTEGRATION
+  MANUAL_ASSISTED
+}
+
+enum ConnectorStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_REVIEW
+  SUSPENDED
+}
+
+enum ComplianceLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BookingStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PAID
+  IN_PROGRESS
+  COMPLETED
+  ERROR
+  REQUIRES_USER_ACTION
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  PAYMENT
+  BOOKING_ATTEMPT
+  COMPLIANCE_CHECK
+  CONNECTOR_TOGGLE
+  DATA_EXPORT
+  DATA_DELETE
+}
+
+enum DocumentStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+  EXPIRED
+}
+
+// ─── USER & AUTH ─────────────────────────────────────────────────────────────
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String
+  role              UserRole  @default(USER)
+  isActive          Boolean   @default(true)
+  isEmailVerified   Boolean   @default(false)
+  mfaEnabled        Boolean   @default(false)
+  mfaSecret         String?
+  emailVerifyToken  String?
+  resetPasswordToken String?
+  resetPasswordExpiry DateTime?
+  consentGiven      Boolean   @default(false)
+  consentDate       DateTime?
+  consentVersion    String?
+  dataRetentionDate DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  applicantProfiles ApplicantProfile[]
+  bookingRequests   BookingRequest[]
+  payments          Payment[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  refreshTokens     RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ─── APPLICANT PROFILES ───────────────────────────────────────────────────────
+
+model ApplicantProfile {
+  id            String   @id @default(uuid())
+  userId        String
+  firstName     String
+  lastName      String
+  documentType  String   // DNI, NIE, Passport, etc.
+  documentNumber String
+  nationality   String
+  birthDate     DateTime
+  email         String?
+  phone         String?
+  address       Json?    // { street, city, province, postalCode, country }
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingRequests BookingRequest[]
+  documentFiles   DocumentFile[]
+
+  @@map("applicant_profiles")
+}
+
+// ─── ORGANIZATIONS & PROCEDURES ──────────────────────────────────────────────
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  country     String
+  region      String?
+  website     String?
+  logoUrl     String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  procedures Procedure[]
+  connectors Connector[]
+
+  @@map("organizations")
+}
+
+model Procedure {
+  id              String   @id @default(uuid())
+  organizationId  String
+  name            String
+  slug            String
+  description     String?
+  category        String
+  estimatedTime   Int?     // minutes
+  serviceFee      Decimal? @db.Decimal(10, 2)
+  currency        String   @default("EUR")
+  isActive        Boolean  @default(true)
+  formSchema      Json     // dynamic form definition
+  eligibilityRules Json?   // rules engine config
+  slaHours        Int?
+  legalBasis      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization  Organization         @relation(fields: [organizationId], references: [id])
+  requirements  ProcedureRequirement[]
+  bookingRequests BookingRequest[]
+  connector     Connector?           @relation(fields: [connectorId], references: [id])
+  connectorId   String?
+
+  @@unique([organizationId, slug])
+  @@map("procedures")
+}
+
+model ProcedureRequirement {
+  id          String  @id @default(uuid())
+  procedureId String
+  name        String
+  description String?
+  type        String  // document, field, condition
+  isRequired  Boolean @default(true)
+  validations Json?   // validation rules
+  order       Int     @default(0)
+
+  procedure Procedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+
+  @@map("procedure_requirements")
+}
+
+// ─── CONNECTORS ───────────────────────────────────────────────────────────────
+
+model Connector {
+  id                  String          @id @default(uuid())
+  organizationId      String
+  name                String
+  slug                String          @unique
+  integrationType     IntegrationType
+  status              ConnectorStatus @default(PENDING_REVIEW)
+  canCheckAvailability Boolean        @default(false)
+  canBook             Boolean         @default(false)
+  canCancel           Boolean         @default(false)
+  canReschedule       Boolean         @default(false)
+  baseUrl             String?
+  authConfig          Json?           // encrypted config
+  rateLimit           Int?            // requests per minute
+  complianceLevel     ComplianceLevel @default(MEDIUM)
+  legalBasis          String?
+  termsOfServiceUrl   String?
+  lastComplianceCheck DateTime?
+  notes               String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  organization      Organization       @relation(fields: [organizationId], references: [id])
+  capabilities      ConnectorCapability[]
+  procedures        Procedure[]
+  complianceReviews ComplianceReview[]
+  bookingAttempts   BookingAttempt[]
+
+  @@map("connectors")
+}
+
+model ConnectorCapability {
+  id          String @id @default(uuid())
+  connectorId String
+  capability  String // e.g. "check_availability", "book", "cancel"
+  endpoint    String?
+  method      String?
+  config      Json?
+
+  connector Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@map("connector_capabilities")
+}
+
+model ComplianceReview {
+  id              String          @id @default(uuid())
+  connectorId     String
+  reviewedBy      String?
+  decision        IntegrationType
+  riskLevel       ComplianceLevel
+  notes           String?
+  termsChecked    Boolean         @default(false)
+  robotsTxtChecked Boolean        @default(false)
+  apiDocsChecked  Boolean         @default(false)
+  legalBasis      String?
+  approvedAt      DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime        @default(now())
+
+  connector Connector @relation(fields: [connectorId], references: [id])
+
+  @@map("compliance_reviews")
+}
+
+// ─── BOOKING ──────────────────────────────────────────────────────────────────
+
+model BookingRequest {
+  id                 String        @id @default(uuid())
+  userId             String
+  applicantProfileId String
+  procedureId        String
+  status             BookingStatus @default(DRAFT)
+  formData           Json          // encrypted user-submitted data
+  validationResult   Json?
+  eligibilityResult  Json?
+  selectedDate       DateTime?
+  selectedTime       String?
+  notes              String?
+  externalRef        String?       // reference from the official portal
+  completedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  user             User             @relation(fields: [userId], references: [id])
+  applicantProfile ApplicantProfile @relation(fields: [applicantProfileId], references: [id])
+  procedure        Procedure        @relation(fields: [procedureId], references: [id])
+  bookingAttempts  BookingAttempt[]
+  appointment      Appointment?
+  payment          Payment?
+  documentFiles    DocumentFile[]
+
+  @@map("booking_requests")
+}
+
+model BookingAttempt {
+  id               String   @id @default(uuid())
+  bookingRequestId String
+  connectorId      String?
+  attemptNumber    Int      @default(1)
+  success          Boolean  @default(false)
+  response         Json?
+  errorMessage     String?
+  attemptedAt      DateTime @default(now())
+
+  bookingRequest BookingRequest @relation(fields: [bookingRequestId], references: [id])
+  connector      Connector?     @relation(fields: [connectorId], references: [id])
+
+  @@map("booking_attempts")
+}
+
+model Appointment {
+  id               String   @id @default(uuid())
+  bookingRequestId String   @unique
+  confirmationCode String?
+  appointmentDate  DateTime
+  appointmentTime  String
+  location         String?
+  instructions     String?
+  receiptUrl       String?
+  receiptData      Json?
+  cancelledAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bookingRequest BookingRequest @relation(fields: [bookingRequestId], references: [id])
+
+  @@map("appointments")
+}
+
+// ─── PAYMENTS ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id               String        @id @default(uuid())
+  userId           String
+  bookingRequestId String?       @unique
+  stripePaymentId  String?       @unique
+  stripeSessionId  String?
+  amount           Decimal       @db.Decimal(10, 2)
+  currency         String        @default("EUR")
+  status           PaymentStatus @default(PENDING)
+  description      String?
+  metadata         Json?
+  paidAt           DateTime?
+  refundedAt       DateTime?
+  refundAmount     Decimal?      @db.Decimal(10, 2)
+  refundReason     String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id])
+  bookingRequest BookingRequest? @relation(fields: [bookingRequestId], references: [id])
+  invoice        Invoice?
+
+  @@map("payments")
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  paymentId     String   @unique
+  invoiceNumber String   @unique
+  issuedAt      DateTime @default(now())
+  dueDate       DateTime?
+  pdfUrl        String?
+  data          Json     // full invoice data snapshot
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@map("invoices")
+}
+
+// ─── DOCUMENTS ────────────────────────────────────────────────────────────────
+
+model DocumentFile {
+  id                 String         @id @default(uuid())
+  applicantProfileId String?
+  bookingRequestId   String?
+  fieldName          String
+  originalName       String
+  storageKey         String         // S3 key
+  mimeType           String
+  sizeBytes          Int
+  status             DocumentStatus @default(PENDING)
+  validationNotes    String?
+  expiresAt          DateTime?
+  uploadedAt         DateTime       @default(now())
+  deletedAt          DateTime?
+
+  applicantProfile ApplicantProfile? @relation(fields: [applicantProfileId], references: [id])
+  bookingRequest   BookingRequest?   @relation(fields: [bookingRequestId], references: [id])
+
+  @@map("document_files")
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String
+  channel   NotificationChannel
+  status    NotificationStatus  @default(PENDING)
+  subject   String?
+  body      String
+  metadata  Json?
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─── AUDIT LOG ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String?
+  action     AuditAction
+  entityType String?
+  entityId   String?
+  ipAddress  String?
+  userAgent  String?
+  before     Json?
+  after      Json?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# commit-msg hook — Enforce Conventional Commits format
+#
+# Valid prefixes: feat, fix, hotfix, chore, docs, refactor, test, ci, perf, style
+# Examples:
+#   feat: add MFA support
+#   fix: correct login redirect
+#   feat(auth): add refresh token rotation
+#   fix(GCO-42): resolve booking status bug
+# ─────────────────────────────────────────────────────────────────────────────
+
+MSG_FILE="$1"
+MSG=$(cat "$MSG_FILE")
+
+PATTERN='^(feat|fix|hotfix|chore|docs|refactor|test|ci|perf|style|release)(\([a-zA-Z0-9_\-]+\))?: .{3,}'
+
+if ! echo "$MSG" | grep -qE "$PATTERN"; then
+  echo ""
+  echo "  ✗ Invalid commit message format."
+  echo ""
+  echo "  Required: <type>(<scope>): <description>"
+  echo "  Types:    feat | fix | hotfix | chore | docs | refactor | test | ci | perf | style"
+  echo ""
+  echo "  Examples:"
+  echo "    feat: add MFA support"
+  echo "    fix(auth): correct token expiry"
+  echo "    chore: update dependencies"
+  echo "    fix(GCO-42): resolve booking status bug"
+  echo ""
+  echo "  Your message: $MSG"
+  echo ""
+  exit 1
+fi
+
+exit 0

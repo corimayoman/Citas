@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# pre-commit hook
+# Runs fast checks before every commit (no tests — those run at push time)
+# ─────────────────────────────────────────────────────────────────────────────
+
+WORKFLOW_DIR="$(git rev-parse --show-toplevel)/.workflow"
+source "$WORKFLOW_DIR/config.sh"
+
+CURRENT=$(git rev-parse --abbrev-ref HEAD)
+
+# ─── Block direct commits to protected branches ──────────────────────────────
+
+if [[ "$CURRENT" == "$PROD_BRANCH" || "$CURRENT" == "$QA_BRANCH" ]]; then
+  error "Direct commits to '$CURRENT' are not allowed."
+  error "Use 'gw start' to create a feature branch."
+  exit 1
+fi
+
+# ─── Detect secrets / sensitive patterns ─────────────────────────────────────
+
+STAGED=$(git diff --cached --name-only)
+
+FORBIDDEN_PATTERNS=(
+  'sk_live_'
+  'sk_test_'
+  'AKIA[0-9A-Z]{16}'
+  'password\s*=\s*["\x27][^"\x27]{8,}'
+  'JWT_SECRET\s*=\s*["\x27][^"\x27]+'
+  'ENCRYPTION_KEY\s*=\s*["\x27][^"\x27]+'
+)
+
+for file in $STAGED; do
+  [[ "$file" == *.env* ]] && continue  # .env files are gitignored
+  for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+    if git diff --cached -- "$file" | grep -qE "$pattern" 2>/dev/null; then
+      error "Possible secret detected in: $file"
+      error "Pattern: $pattern"
+      error "Remove it before committing."
+      exit 1
+    fi
+  done
+done
+
+# ─── Block .env files ─────────────────────────────────────────────────────────
+
+for file in $STAGED; do
+  if echo "$file" | grep -qE '\.env($|\.)' && ! echo "$file" | grep -q '\.example'; then
+    error "Attempting to commit an .env file: $file"
+    error "Add it to .gitignore instead."
+    exit 1
+  fi
+done
+
+exit 0

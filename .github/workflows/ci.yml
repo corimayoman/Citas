@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - qa
+  pull_request:
+    branches:
+      - main
+      - qa
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: gestor_citas_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript — backend
+        run: npx tsc --noEmit
+        working-directory: apps/backend
+
+      - name: TypeScript — frontend
+        run: npx tsc --noEmit
+        working-directory: apps/frontend
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+
+      - name: Tests — backend
+        run: npm test
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+          JWT_SECRET: ci-test-secret
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
+
+      - name: Lint — frontend
+        run: npm run lint --if-present
+        working-directory: apps/frontend
+
+  # ─── PR title check ────────────────────────────────────────────────────────
+  pr-title:
+    name: PR Title (Conventional Commits)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check PR title
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          PATTERN='^(feat|fix|hotfix|chore|docs|refactor|test|ci|perf|style|release)(\([a-zA-Z0-9_\-]+\))?: .{3,}'
+          if ! echo "$TITLE" | grep -qE "$PATTERN"; then
+            echo "PR title does not follow Conventional Commits: $TITLE"
+            exit 1
+          fi

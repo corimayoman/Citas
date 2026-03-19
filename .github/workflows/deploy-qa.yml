@@ -1,0 +1,62 @@
+name: Deploy — QA
+
+on:
+  push:
+    branches:
+      - qa
+
+concurrency:
+  group: deploy-qa
+  cancel-in-progress: false   # never cancel a running QA deploy
+
+jobs:
+  deploy-qa:
+    name: Deploy to QA
+    runs-on: ubuntu-latest
+    environment: qa            # requires environment protection rules in GitHub
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build backend
+        run: npm run build
+        working-directory: apps/backend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: apps/frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.QA_API_URL }}
+
+      - name: Run migrations (QA)
+        run: npx prisma migrate deploy
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: ${{ secrets.QA_DATABASE_URL }}
+
+      # ── Replace with your actual deployment step ──────────────────────────
+      # Examples: Railway, Render, Fly.io, AWS ECS, Docker push, etc.
+      - name: Deploy backend to QA
+        run: echo "Deploy backend → QA environment"
+        env:
+          DEPLOY_TOKEN: ${{ secrets.QA_DEPLOY_TOKEN }}
+
+      - name: Deploy frontend to QA
+        run: echo "Deploy frontend → QA environment"
+        env:
+          DEPLOY_TOKEN: ${{ secrets.QA_DEPLOY_TOKEN }}
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "QA deployment ${{ job.status }} — commit ${{ github.sha }}"
+          # Add Slack/email notification here
