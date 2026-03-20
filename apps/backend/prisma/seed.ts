@@ -40,10 +40,10 @@ async function main() {
 
   // ─── Applicant profile ────────────────────────────────────────────────────
   await prisma.applicantProfile.upsert({
-    where: { id: 'profile-seed-001' },
+    where: { id: '00000000-0000-0000-0000-000000000001' },
     update: {},
     create: {
-      id: 'profile-seed-001',
+      id: '00000000-0000-0000-0000-000000000001',
       userId: user.id,
       firstName: 'María',
       lastName: 'García López',
