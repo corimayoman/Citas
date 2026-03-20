@@ -1,11 +1,31 @@
 'use client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, FileText, CreditCard, User, CheckCircle, AlertCircle, Clock, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, CreditCard, User, CheckCircle, AlertCircle, Clock, XCircle, RefreshCw } from 'lucide-react';
+
+function RetryExecution({ bookingId }: { bookingId: string }) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/bookings/${bookingId}/execute`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booking', bookingId] }),
+  });
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-5 flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-red-800">Error en la gestión</p>
+        <p className="text-xs text-red-600 mt-0.5">El pago fue procesado. Podés reintentar la ejecución.</p>
+      </div>
+      <Button size="sm" variant="outline" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${mutation.isPending ? 'animate-spin' : ''}`} />
+        {mutation.isPending ? 'Reintentando...' : 'Reintentar'}
+      </Button>
+    </div>
+  );
+}
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   DRAFT:                { label: 'Borrador',           color: 'bg-gray-100 text-gray-700',    icon: FileText },
@@ -128,6 +148,11 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
             <p className="text-xs text-muted-foreground mt-1">Pagado el {formatDate(booking.payment.paidAt)}</p>
           )}
         </div>
+      )}
+
+      {/* Error with payment done — allow retry */}
+      {booking.status === 'ERROR' && booking.payment?.status === 'PAID' && (
+        <RetryExecution bookingId={params.id} />
       )}
 
       {/* Manual action required */}

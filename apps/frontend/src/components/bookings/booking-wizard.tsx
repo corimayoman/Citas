@@ -95,7 +95,10 @@ export function BookingWizard({ procedure }: WizardProps) {
       : api.post('/payments/checkout', { bookingRequestId: bookingId }),
     onSuccess: (res) => {
       if (isDemoMode) {
-        router.push(`/bookings/${bookingId}/success?demo=true`);
+        // Execute the booking immediately after demo payment
+        api.post(`/bookings/${bookingId}/execute`).finally(() => {
+          router.push(`/bookings/${bookingId}/success?demo=true`);
+        });
       } else {
         window.location.href = res.data.data.url;
       }
