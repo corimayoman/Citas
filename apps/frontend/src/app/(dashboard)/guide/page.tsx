@@ -222,3 +222,212 @@ const FLOW_STEPS = [
     dot: 'bg-green-500',
   },
 ];
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export default function GuidePage() {
+  const [activeSection, setActiveSection] = useState('what-is');
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveSection(entry.target.id);
+        });
+      },
+      { rootMargin: '-20% 0px -70% 0px' }
+    );
+    SECTIONS.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) observerRef.current?.observe(el);
+    });
+    return () => observerRef.current?.disconnect();
+  }, []);
+
+  return (
+    <div className="flex gap-8 max-w-6xl mx-auto">
+      {/* Sticky TOC */}
+      <aside className="hidden lg:block w-48 shrink-0">
+        <div className="sticky top-6 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Contenido</p>
+          {SECTIONS.map(({ id, label }) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={cn(
+                'block text-xs py-1 px-2 rounded transition-colors',
+                activeSection === id
+                  ? 'text-foreground font-medium bg-accent'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </aside>
+
+      {/* Content */}
+      <div className="flex-1 space-y-20 pb-20">
+
+        {/* What is */}
+        <section>
+          <SectionAnchor id="what-is" />
+          <SectionHeading eyebrow="La plataforma" title="¿Qué es el Gestor de Citas?" subtitle="Un intermediario digital que simplifica la gestión de trámites con la administración pública española." />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { icon: Zap, title: 'Automatización', desc: 'Reserva citas automáticamente cuando el organismo lo permite.' },
+              { icon: Hand, title: 'Asistencia guiada', desc: 'Te preparamos todo para que tú completes en 2 minutos.' },
+              { icon: Shield, title: 'Seguridad y RGPD', desc: 'Datos cifrados, cumplimiento total con la normativa europea.' },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white border rounded-lg p-5">
+                <Icon className="h-6 w-6 text-primary mb-3" />
+                <p className="font-semibold text-sm mb-1">{title}</p>
+                <p className="text-xs text-muted-foreground">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section>
+          <SectionAnchor id="how-it-works" />
+          <SectionHeading eyebrow="El proceso" title="Cómo funciona" />
+          <div className="space-y-3">
+            {FLOW_STEPS.map((step) => (
+              <div key={step.number} className={`flex items-start gap-4 p-4 rounded-lg border ${step.color}`}>
+                <div className="shrink-0 w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-bold shadow-sm">
+                  {step.number}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{step.title}</p>
+                  <p className="text-xs mt-0.5 opacity-80">{step.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Procedures */}
+        <section>
+          <SectionAnchor id="procedures" />
+          <SectionHeading eyebrow="Catálogo" title="Trámites disponibles" subtitle="Más de 18 trámites en 6 categorías." />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {PROCEDURE_CATEGORIES.map((cat) => (
+              <div key={cat.name} className={`bg-gradient-to-br ${cat.color} border rounded-lg p-5`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`text-lg w-8 h-8 flex items-center justify-center rounded-md ${cat.iconBg}`}>{cat.icon}</span>
+                  <p className="font-semibold text-sm">{cat.name}</p>
+                </div>
+                <div className="space-y-2">
+                  {cat.procedures.map((p) => (
+                    <div key={p.name} className="flex items-center justify-between bg-white/60 rounded px-3 py-2">
+                      <p className="text-xs font-medium truncate pr-2">{p.name}</p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <ModeChip mode={p.mode} />
+                        <span className="text-xs font-semibold">{p.fee}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Integration modes */}
+        <section>
+          <SectionAnchor id="integration-modes" />
+          <SectionHeading eyebrow="Integración" title="Modos de integración" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="h-5 w-5 text-green-600" />
+                <p className="font-semibold text-green-800">Automático (API)</p>
+              </div>
+              <p className="text-sm text-green-700">El organismo dispone de una API oficial. La reserva se completa sin intervención manual. Recibes confirmación y código de cita al instante.</p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Hand className="h-5 w-5 text-gray-600" />
+                <p className="font-semibold text-gray-800">Asistido (manual)</p>
+              </div>
+              <p className="text-sm text-gray-600">Preparamos todos tus datos y te guiamos paso a paso. Tú completas la reserva en el portal oficial en menos de 2 minutos con todo listo.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Booking flow */}
+        <section>
+          <SectionAnchor id="booking-flow" />
+          <SectionHeading eyebrow="Paso a paso" title="Proceso de reserva" />
+          <div className="relative">
+            <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
+            <div className="space-y-6 pl-12">
+              {FLOW_STEPS.map((step) => (
+                <div key={step.number} className="relative">
+                  <div className={`absolute -left-9 w-4 h-4 rounded-full border-2 border-white ${step.dot}`} />
+                  <p className="font-semibold text-sm">{step.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Payments */}
+        <section>
+          <SectionAnchor id="payments" />
+          <SectionHeading eyebrow="Tarifas" title="Pagos y precios" subtitle="Tarifa de gestión única por trámite. Sin suscripciones." />
+          <div className="bg-white border rounded-lg divide-y">
+            {[
+              { label: 'Trámites simples (certificados, altas)', price: '9,99 €' },
+              { label: 'Trámites estándar (renovaciones, citas)', price: '14,99 €' },
+              { label: 'Trámites complejos (extranjería, homologaciones)', price: '24,99 – 29,99 €' },
+            ].map(({ label, price }) => (
+              <div key={label} className="flex items-center justify-between px-5 py-4">
+                <p className="text-sm">{label}</p>
+                <p className="text-sm font-semibold">{price}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">Las tasas oficiales del organismo, si las hubiera, son adicionales y se pagan directamente al organismo.</p>
+        </section>
+
+        {/* Security */}
+        <section>
+          <SectionAnchor id="security" />
+          <SectionHeading eyebrow="Privacidad" title="Seguridad y protección de datos" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              { icon: Lock, title: 'Cifrado AES-256-GCM', desc: 'Todos los datos personales se cifran en reposo.' },
+              { icon: Shield, title: 'Cumplimiento RGPD', desc: 'Puedes exportar o eliminar tus datos en cualquier momento.' },
+              { icon: RefreshCw, title: 'Retención mínima', desc: 'Solo conservamos datos el tiempo estrictamente necesario.' },
+              { icon: Award, title: 'Intermediario legal', desc: 'Operamos como gestoría digital, dentro del marco legal vigente.' },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="flex items-start gap-3 bg-white border rounded-lg p-4">
+                <Icon className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">{title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section>
+          <SectionAnchor id="faq" />
+          <SectionHeading eyebrow="Dudas" title="Preguntas frecuentes" />
+          <div className="space-y-2">
+            {FAQ_ITEMS.map((item) => (
+              <FaqItem key={item.q} q={item.q} a={item.a} />
+            ))}
+          </div>
+        </section>
+
+      </div>
+    </div>
+  );
+}
