@@ -64,10 +64,10 @@ export const paymentService = {
     }
 
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.CheckoutSession;
+      const session = event.data.object as Stripe.Checkout.Session;
       const { bookingRequestId, userId } = session.metadata!;
 
-      await prisma.payment.update({
+      await prisma.payment.updateMany({
         where: { stripeSessionId: session.id },
         data: {
           status: PaymentStatus.PAID,
@@ -82,14 +82,14 @@ export const paymentService = {
       });
 
       // Generate invoice
-      const payment = await prisma.payment.findUnique({ where: { stripeSessionId: session.id } });
+      const payment = await prisma.payment.findFirst({ where: { stripeSessionId: session.id } });
       if (payment) {
         const invoiceNumber = `INV-${Date.now()}`;
         await prisma.invoice.create({
           data: {
             paymentId: payment.id,
             invoiceNumber,
-            data: { session, payment },
+            data: JSON.parse(JSON.stringify({ session, payment })),
           },
         });
       }
