@@ -171,7 +171,11 @@ A user's request to book an appointment for a specific procedure.
 | `status` | Enum | See [Booking status values](#booking-status) |
 | `formData` | JSON | AES-256-GCM encrypted user-submitted form data |
 | `validationResult` | JSON | Result of eligibility/completeness check |
-| `selectedDate` | DateTime | Chosen appointment date |
+| `preferredDateFrom` | DateTime | User's preferred search start date |
+| `preferredDateTo` | DateTime | User's preferred search end date |
+| `preferredTimeSlot` | String | `morning` (before 14:00) or `afternoon` (after 14:00) |
+| `paymentDeadline` | DateTime | 24h before the found appointment — confirm by this date |
+| `selectedDate` | DateTime | Appointment date found by the background search |
 | `externalRef` | String | Confirmation code from the official portal |
 | `completedAt` | DateTime | Timestamp of successful completion |
 
@@ -226,24 +230,26 @@ Uploaded supporting document linked to a profile or booking.
 ### Booking status
 
 ```
-DRAFT → PENDING_PAYMENT → PAID → IN_PROGRESS → COMPLETED
-                                              ↘ ERROR
-                                              ↘ REQUIRES_USER_ACTION
+DRAFT → (pay) → SEARCHING → PRE_CONFIRMED → (confirm) → CONFIRMED
+                                           ↘ EXPIRED (deadline passed without confirm)
          (any) → CANCELLED
+         (any) → ERROR
          (any) → REFUNDED
 ```
 
 | Value | Meaning | Next action |
 |-------|---------|-------------|
-| `DRAFT` | Form saved, not yet validated | Complete form and pay |
-| `PENDING_PAYMENT` | Awaiting Stripe payment | Complete checkout |
-| `PAID` | Payment confirmed | System executes booking |
-| `IN_PROGRESS` | Connector is attempting the booking | Wait |
-| `COMPLETED` | Appointment confirmed, code issued | View appointment details |
-| `ERROR` | Booking attempt failed | Contact support |
+| `DRAFT` | Form saved, not yet paid | Pay to start search |
+| `SEARCHING` | Payment received, background job looking for a slot | Wait for notification |
+| `PRE_CONFIRMED` | Slot found, waiting for user confirmation | Confirm before payment deadline |
+| `CONFIRMED` | User confirmed, full appointment details sent | View appointment details |
+| `IN_PROGRESS` | Connector is attempting the booking (legacy flow) | Wait |
+| `COMPLETED` | Appointment confirmed via legacy execute flow | View appointment details |
+| `ERROR` | Booking attempt failed or search exhausted | Contact support or retry |
 | `REQUIRES_USER_ACTION` | Manual-assisted mode — user must act | Follow portal instructions |
 | `CANCELLED` | Booking cancelled by user or system | — |
 | `REFUNDED` | Payment refunded | — |
+| `EXPIRED` | Payment deadline passed without confirmation | — |
 
 ### Payment status
 
@@ -328,10 +334,11 @@ Interactive docs: `http://localhost:3001/api/docs`
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `GET` | `/bookings` | Bearer | List own bookings (paginated) |
-| `POST` | `/bookings` | Bearer | Create booking draft |
+| `POST` | `/bookings` | Bearer | Create booking draft (accepts `preferredDateFrom`, `preferredDateTo`, `preferredTimeSlot`) |
 | `GET` | `/bookings/:id` | Bearer | Booking detail with attempts and appointment |
 | `POST` | `/bookings/:id/validate` | Bearer | Run eligibility and completeness check |
-| `POST` | `/bookings/:id/execute` | Bearer | Execute booking (automated or assisted) |
+| `POST` | `/bookings/:id/execute` | Bearer | Execute booking (legacy — automated or assisted) |
+| `POST` | `/bookings/:id/confirm-payment` | Bearer | Confirm slot after `PRE_CONFIRMED` — moves to `CONFIRMED` and sends appointment details |
 
 ### Payments
 
@@ -339,7 +346,16 @@ Interactive docs: `http://localhost:3001/api/docs`
 |--------|----------|------|-------------|
 | `GET` | `/payments` | Bearer | List own payments with invoices |
 | `POST` | `/payments/checkout` | Bearer | Create Stripe Checkout session |
+| `POST` | `/payments/demo-checkout` | Bearer | Demo mode — marks payment as paid and starts background search |
 | `POST` | `/payments/webhook` | Stripe sig | Handle Stripe webhook events |
+
+### Notifications
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/notifications` | Bearer | List own notifications (last 50) |
+| `POST` | `/notifications/:id/read` | Bearer | Mark a notification as read |
+| `POST` | `/notifications/read-all` | Bearer | Mark all notifications as read |
 
 ### Connectors
 
@@ -665,6 +681,7 @@ npm run db:studio
 | `FRONTEND_URL` | Yes | Frontend origin for CORS and Stripe redirects |
 | `STRIPE_SECRET_KEY` | Yes | Stripe secret key (live or test mode) |
 | `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signing secret |
+| `STRIPE_DEMO_MODE` | No | Set to `true` to skip Stripe and use demo payments |
 | `REDIS_URL` | Yes | Redis connection string for BullMQ |
 | `S3_ENDPOINT` | No | S3-compatible storage endpoint |
 | `S3_BUCKET` | No | Bucket name for document storage |

@@ -8,6 +8,7 @@ import {
   CheckCircle, Clock, CreditCard, FileText, Users, Building2,
   ArrowRight, Play, Star, AlertCircle, Info, Search,
   Calendar, Lock, RefreshCw, Award, HelpCircle, ExternalLink,
+  Bell,
 } from 'lucide-react';
 
 // ─── Section IDs ─────────────────────────────────────────────────────────────
@@ -96,11 +97,11 @@ const PROCEDURE_CATEGORIES = [
 const FAQ_ITEMS = [
   {
     q: '¿Esta app reserva la cita por mí automáticamente?',
-    a: 'Depende del organismo. Si dispone de una API oficial o integración autorizada, sí lo hacemos de forma completamente automática. Si no, preparamos todos tus datos y te guiamos paso a paso para que tú completes la reserva en el portal oficial en menos de 2 minutos.',
+    a: 'Sí. Una vez realizado el pago, el sistema busca la primera cita disponible dentro de tus preferencias de fecha y horario. Cuando la encuentra, te notifica y puedes confirmar para recibir todos los detalles. No necesitas estar pendiente del portal oficial.',
   },
   {
-    q: '¿Qué pasa si no hay citas disponibles?',
-    a: 'En los organismos con integración permitida, monitorizamos la disponibilidad y te notificamos en cuanto aparezca un hueco. En modo asistido, te indicamos cuándo y cómo revisar el portal oficial.',
+    q: '¿Qué pasa si no hay citas disponibles en mis fechas preferidas?',
+    a: 'El sistema sigue reintentando automáticamente hasta encontrar una cita dentro del rango que indicaste. Si agota los intentos sin éxito, el expediente queda en estado de error y nuestro equipo te contactará.',
   },
   {
     q: '¿Puedo gestionar citas para otra persona?',
@@ -199,9 +200,9 @@ const FLOW_STEPS = [
   },
   {
     number: '03',
-    icon: FileText,
-    title: 'Completa el formulario',
-    description: 'Solo los campos necesarios para ese trámite específico. Validación en tiempo real. Puedes guardar el borrador.',
+    icon: Calendar,
+    title: 'Indica tus preferencias de fecha',
+    description: 'Selecciona un rango de fechas y si prefieres cita de mañana (antes de las 14:00) o tarde (después de las 14:00).',
     color: 'bg-violet-50 border-violet-200 text-violet-700',
     dot: 'bg-violet-500',
   },
@@ -209,15 +210,23 @@ const FLOW_STEPS = [
     number: '04',
     icon: CreditCard,
     title: 'Paga el servicio',
-    description: 'Pago seguro con Stripe. Tarjeta de crédito/débito. Recibes factura inmediatamente.',
+    description: 'Pago seguro con Stripe. Una vez confirmado, iniciamos la búsqueda de cita en segundo plano. Recibes factura inmediatamente.',
     color: 'bg-purple-50 border-purple-200 text-purple-700',
     dot: 'bg-purple-500',
   },
   {
     number: '05',
-    icon: Calendar,
-    title: 'Confirmación de cita',
-    description: 'Si hay integración oficial: reserva automática y código de confirmación. Si no: te guiamos para completarlo en 2 minutos.',
+    icon: Bell,
+    title: 'Te notificamos cuando encontramos cita',
+    description: 'El sistema busca la primera disponibilidad dentro de tus preferencias. Cuando la encuentra, te notifica y el expediente pasa a "Cita encontrada".',
+    color: 'bg-amber-50 border-amber-200 text-amber-700',
+    dot: 'bg-amber-500',
+  },
+  {
+    number: '06',
+    icon: CheckCircle,
+    title: 'Confirma para ver los detalles',
+    description: 'Tienes hasta 24 horas antes de la cita para confirmar. Al confirmar, recibes todos los detalles (fecha, hora, lugar, código) por notificación.',
     color: 'bg-green-50 border-green-200 text-green-700',
     dot: 'bg-green-500',
   },
