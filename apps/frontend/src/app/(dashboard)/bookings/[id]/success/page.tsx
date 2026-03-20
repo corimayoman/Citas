@@ -7,14 +7,19 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
+const TERMINAL_STATUSES = ['COMPLETED', 'REQUIRES_USER_ACTION', 'ERROR', 'CANCELLED'];
+
 export default function BookingSuccessPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id');
+  const isDemo = searchParams.get('demo') === 'true';
 
   const { data: booking, isLoading } = useQuery({
-    queryKey: ['booking', params.id],
+    queryKey: ['booking-success', params.id],
     queryFn: () => api.get(`/bookings/${params.id}`).then(r => r.data.data),
-    refetchInterval: (query) => query.state.data?.status === 'PAID' || query.state.data?.status === 'IN_PROGRESS' ? 2000 : false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && TERMINAL_STATUSES.includes(status) ? false : 2000;
+    },
   });
 
   const execute = useMutation({
@@ -22,10 +27,12 @@ export default function BookingSuccessPage({ params }: { params: { id: string } 
   });
 
   useEffect(() => {
-    if (booking?.status === 'PAID' && !execute.isPending && !execute.isSuccess) {
+    // Only trigger execute from this page if NOT coming from demo flow
+    // (demo flow already called execute before redirecting here)
+    if (!isDemo && booking?.status === 'PAID' && !execute.isPending && !execute.isSuccess) {
       execute.mutate();
     }
-  }, [booking?.status]);
+  }, [booking?.status, isDemo]);
 
   if (isLoading) {
     return (
@@ -35,9 +42,11 @@ export default function BookingSuccessPage({ params }: { params: { id: string } 
     );
   }
 
-  const isCompleted = booking?.status === 'COMPLETED';
-  const isManual = booking?.status === 'REQUIRES_USER_ACTION';
-  const isError = booking?.status === 'ERROR';
+  const status = booking?.status;
+  const isCompleted = status === 'COMPLETED';
+  const isManual = status === 'REQUIRES_USER_ACTION';
+  const isError = status === 'ERROR';
+  const isProcessing = !status || !TERMINAL_STATUSES.includes(status);
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -84,7 +93,7 @@ export default function BookingSuccessPage({ params }: { params: { id: string } 
           </>
         )}
 
-        {!isCompleted && !isManual && !isError && (
+        {!isCompleted && !isManual && !isError && isProcessing && (
           <>
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Procesando tu gestión</h2>
