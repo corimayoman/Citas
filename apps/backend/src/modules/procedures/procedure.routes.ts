@@ -69,7 +69,13 @@ const procedureSchema = z.object({
 router.post('/', authenticate, authorize('ADMIN', 'OPERATOR'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = procedureSchema.parse(req.body);
-    const procedure = await prisma.procedure.create({ data });
+    const procedure = await prisma.procedure.create({
+      data: {
+        ...data,
+        formSchema: data.formSchema as object,
+        eligibilityRules: data.eligibilityRules as object | undefined,
+      },
+    });
     res.status(201).json({ data: procedure });
   } catch (err) { next(err); }
 });
@@ -77,7 +83,17 @@ router.post('/', authenticate, authorize('ADMIN', 'OPERATOR'), async (req: Reque
 router.put('/:id', authenticate, authorize('ADMIN', 'OPERATOR'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = procedureSchema.partial().parse(req.body);
-    const procedure = await prisma.procedure.update({ where: { id: req.params.id }, data });
+    const { organizationId, connectorId, ...rest } = data;
+    const procedure = await prisma.procedure.update({
+      where: { id: req.params.id },
+      data: {
+        ...rest,
+        ...(data.formSchema && { formSchema: data.formSchema as object }),
+        ...(data.eligibilityRules && { eligibilityRules: data.eligibilityRules as object }),
+        ...(organizationId && { organization: { connect: { id: organizationId } } }),
+        ...(connectorId && { connector: { connect: { id: connectorId } } }),
+      },
+    });
     res.json({ data: procedure });
   } catch (err) { next(err); }
 });

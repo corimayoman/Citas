@@ -14,7 +14,7 @@ export default function BookingSuccessPage({ params }: { params: { id: string } 
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking', params.id],
     queryFn: () => api.get(`/bookings/${params.id}`).then(r => r.data.data),
-    refetchInterval: (data) => data?.status === 'PAID' || data?.status === 'IN_PROGRESS' ? 2000 : false,
+    refetchInterval: (query) => query.state.data?.status === 'PAID' || query.state.data?.status === 'IN_PROGRESS' ? 2000 : false,
   });
 
   const execute = useMutation({
