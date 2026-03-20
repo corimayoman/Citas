@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "README Auto-Update",
+  "description": "When backend or frontend source files are edited, reviews the changes and updates the relevant README sections to keep documentation accurate and current.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "apps/backend/src/**/*.ts",
+      "apps/backend/prisma/schema.prisma",
+      "apps/frontend/src/**/*.tsx",
+      "apps/frontend/src/**/*.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A source file was just edited. Review the change and determine if README.md needs updating. Check these sections specifically:\n- If a Prisma schema entity or enum changed → update the Data Structure or Status Values section\n- If a route file changed → update the API Controls Catalog or Filters Reference section\n- If a service file changed → update the relevant feature description or How to Update Data section\n- If a new module was added → add it to the Tech Stack or API catalog\n\nOnly update the sections that are actually affected by the change. Keep the existing structure and formatting. Do not rewrite sections that are still accurate. If nothing in README.md needs to change, do nothing."
+  }
+}
