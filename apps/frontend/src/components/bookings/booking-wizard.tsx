@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronRight, AlertCircle } from 'lucide-react';
 
 interface WizardProps {
   procedure: any;
@@ -19,6 +19,7 @@ export function BookingWizard({ procedure }: WizardProps) {
   const [selectedProfile, setSelectedProfile] = useState('');
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [bookingId, setBookingId] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const { data: profilesData } = useQuery({
     queryKey: ['profiles'],
@@ -32,8 +33,13 @@ export function BookingWizard({ procedure }: WizardProps) {
       formData,
     }),
     onSuccess: (res) => {
+      setErrorMsg('');
       setBookingId(res.data.data.id);
       setStep(2);
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message || 'Error al crear el expediente. Intenta de nuevo.';
+      setErrorMsg(msg);
     },
   });
 
@@ -41,6 +47,10 @@ export function BookingWizard({ procedure }: WizardProps) {
     mutationFn: () => api.post('/payments/checkout', { bookingRequestId: bookingId }),
     onSuccess: (res) => {
       window.location.href = res.data.data.url;
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error?.message || 'Error al iniciar el pago. Intenta de nuevo.';
+      setErrorMsg(msg);
     },
   });
 
@@ -71,6 +81,12 @@ export function BookingWizard({ procedure }: WizardProps) {
       </div>
 
       <div className="p-6">
+        {errorMsg && (
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700 mb-4">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
         {/* Step 0: Select applicant */}
         {step === 0 && (
           <div className="space-y-4">
@@ -105,7 +121,7 @@ export function BookingWizard({ procedure }: WizardProps) {
                 ))}
               </div>
             )}
-            <Button onClick={() => setStep(1)} disabled={!selectedProfile} className="w-full">
+            <Button onClick={() => { setErrorMsg(''); setStep(1); }} disabled={!selectedProfile} className="w-full">
               Continuar
             </Button>
           </div>
@@ -150,7 +166,7 @@ export function BookingWizard({ procedure }: WizardProps) {
               </div>
             ))}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(0)}>Atrás</Button>
+              <Button variant="outline" onClick={() => { setErrorMsg(''); setStep(0); }}>Atrás</Button>
               <Button onClick={() => createBooking.mutate()} disabled={createBooking.isPending} className="flex-1">
                 {createBooking.isPending ? 'Guardando...' : 'Continuar'}
               </Button>
@@ -173,8 +189,8 @@ export function BookingWizard({ procedure }: WizardProps) {
               Al continuar, autorizas a Gestor de Citas Oficiales a gestionar este trámite en tu nombre como intermediario. Esta aplicación no representa al organismo público.
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(1)}>Atrás</Button>
-              <Button onClick={() => setStep(3)} className="flex-1">Ir al pago</Button>
+              <Button variant="outline" onClick={() => { setErrorMsg(''); setStep(1); }}>Atrás</Button>
+              <Button onClick={() => { setErrorMsg(''); setStep(3); }} className="flex-1">Ir al pago</Button>
             </div>
           </div>
         )}
@@ -196,7 +212,7 @@ export function BookingWizard({ procedure }: WizardProps) {
               </div>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(2)}>Atrás</Button>
+              <Button variant="outline" onClick={() => { setErrorMsg(''); setStep(2); }}>Atrás</Button>
               <Button
                 onClick={() => createCheckout.mutate()}
                 disabled={createCheckout.isPending}
