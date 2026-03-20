@@ -16,6 +16,7 @@ export const paymentService = {
 
     if (!booking) throw new AppError(404, 'Reserva no encontrada', 'BOOKING_NOT_FOUND');
     if (!booking.procedure.serviceFee) throw new AppError(400, 'Este trámite no tiene coste de servicio', 'NO_FEE');
+    if (booking.status !== 'PRE_CONFIRMED') throw new AppError(409, 'La reserva no tiene una cita disponible para confirmar', 'NOT_PRE_CONFIRMED');
 
     const existingPayment = await prisma.payment.findUnique({ where: { bookingRequestId } });
     if (existingPayment?.status === PaymentStatus.PAID) {
@@ -77,12 +78,7 @@ export const paymentService = {
         },
       });
 
-      await prisma.bookingRequest.update({
-        where: { id: bookingRequestId },
-        data: { status: 'SEARCHING' },
-      });
-
-      // Generate invoice
+      // Generar factura
       const payment = await prisma.payment.findFirst({ where: { stripeSessionId: session.id } });
       if (payment) {
         const invoiceNumber = `INV-${Date.now()}`;
@@ -97,8 +93,8 @@ export const paymentService = {
 
       await auditService.log({ userId, action: 'PAYMENT', entityType: 'Payment', after: { status: 'PAID', sessionId: session.id } });
 
-      // Start background search
-      bookingService.startSearching(bookingRequestId).catch(() => {});
+      // Confirmar cita y revelar detalles al usuario
+      await bookingService.confirmAfterPayment(bookingRequestId, userId);
     }
 
     if (event.type === 'charge.refunded') {
@@ -118,13 +114,14 @@ export const paymentService = {
 
     if (!booking) throw new AppError(404, 'Reserva no encontrada', 'BOOKING_NOT_FOUND');
 
+    // Solo se puede pagar cuando hay una cita encontrada (PRE_CONFIRMED)
+    if (booking.status !== 'PRE_CONFIRMED') {
+      throw new AppError(409, 'La reserva no tiene una cita disponible para confirmar', 'NOT_PRE_CONFIRMED');
+    }
+
     const existingPayment = await prisma.payment.findUnique({ where: { bookingRequestId } });
     if (existingPayment?.status === PaymentStatus.PAID) {
-      // Already paid — just trigger search if still in DRAFT/PAID
-      if (['DRAFT', 'PAID'].includes(booking.status)) {
-        bookingService.startSearching(bookingRequestId).catch(() => {});
-      }
-      return { demo: true, paymentId: existingPayment.id };
+      throw new AppError(409, 'Esta reserva ya está pagada', 'ALREADY_PAID');
     }
 
     const payment = await prisma.payment.upsert({
@@ -144,8 +141,8 @@ export const paymentService = {
 
     await auditService.log({ userId, action: 'PAYMENT', entityType: 'Payment', entityId: payment.id, after: { status: 'DEMO_PAID' } });
 
-    // Start background search (non-blocking)
-    bookingService.startSearching(bookingRequestId).catch(() => {});
+    // Confirmar la cita y revelar detalles
+    await bookingService.confirmAfterPayment(bookingRequestId, userId);
 
     return { demo: true, paymentId: payment.id };
   },

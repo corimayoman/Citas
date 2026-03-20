@@ -4,12 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar, FileText, CreditCard, User, CheckCircle, AlertCircle, Clock, XCircle, RefreshCw, Search, Bell } from 'lucide-react';
 
-// Payment button for DRAFT bookings (pay to start searching)
-function DraftPayment({ bookingId, procedure }: { bookingId: string; procedure: any }) {
+// PRE_CONFIRMED — usuario paga para confirmar y ver detalles
+function PreConfirmedPayment({ bookingId, procedure, paymentDeadline }: { bookingId: string; procedure: any; paymentDeadline?: string }) {
   const router = useRouter();
   const isDemoMode = process.env.NEXT_PUBLIC_STRIPE_DEMO_MODE === 'true';
   const [error, setError] = useState('');
@@ -20,7 +19,7 @@ function DraftPayment({ bookingId, procedure }: { bookingId: string; procedure: 
       : api.post('/payments/checkout', { bookingRequestId: bookingId }),
     onSuccess: (res) => {
       if (isDemoMode) {
-        router.push(`/bookings/${bookingId}/success?demo=true`);
+        router.refresh();
       } else {
         window.location.href = res.data.data.url;
       }
@@ -29,48 +28,26 @@ function DraftPayment({ bookingId, procedure }: { bookingId: string; procedure: 
   });
 
   return (
-    <div className="bg-white rounded-lg border p-5 space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Realiza el pago para que iniciemos la búsqueda de tu cita. Te notificaremos cuando encontremos una disponible.
-      </p>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Gestión: {procedure?.name}</span>
-        <span className="font-semibold">{procedure?.serviceFee ? `${procedure.serviceFee} ${procedure.currency}` : 'Gratuito'}</span>
-      </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      <Button onClick={() => checkout.mutate()} disabled={checkout.isPending} className="w-full">
-        {checkout.isPending ? 'Procesando...' : isDemoMode ? 'Confirmar pago (Demo)' : 'Pagar con Stripe'}
-      </Button>
-    </div>
-  );
-}
-
-// Shown when slot is found (PRE_CONFIRMED) — user confirms payment to get details
-function PreConfirmedPayment({ bookingId, paymentDeadline }: { bookingId: string; paymentDeadline?: string }) {
-  const queryClient = useQueryClient();
-  const [error, setError] = useState('');
-
-  const confirm = useMutation({
-    mutationFn: () => api.post(`/bookings/${bookingId}/confirm-payment`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booking', bookingId] }),
-    onError: (err: any) => setError(err?.response?.data?.error?.message || 'Error al confirmar.'),
-  });
-
-  return (
     <div className="bg-amber-50 border border-amber-200 rounded-lg p-5 space-y-3">
       <div className="flex items-start gap-2">
         <Bell className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
         <div>
-          <p className="text-sm font-medium text-amber-800">¡Hemos encontrado una cita!</p>
+          <p className="text-sm font-medium text-amber-800">¡Encontramos una cita disponible!</p>
           <p className="text-xs text-amber-700 mt-1">
-            Confirma para recibir los detalles exactos de tu cita.
-            {paymentDeadline && ` Tienes hasta el ${formatDate(paymentDeadline)} para confirmar.`}
+            Realizá el pago para confirmarla y recibir la fecha, hora y lugar exactos.
+            {paymentDeadline && ` Tenés hasta el ${formatDate(paymentDeadline)} para pagar, si no la cita se libera.`}
           </p>
         </div>
       </div>
+      <div className="flex items-center justify-between text-sm border-t border-amber-200 pt-3">
+        <span className="text-amber-800">Gestión: {procedure?.name}</span>
+        <span className="font-semibold text-amber-900">
+          {procedure?.serviceFee ? `${procedure.serviceFee} ${procedure.currency}` : 'Gratuito'}
+        </span>
+      </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
-      <Button onClick={() => confirm.mutate()} disabled={confirm.isPending} className="w-full">
-        {confirm.isPending ? 'Confirmando...' : 'Confirmar y ver detalles'}
+      <Button onClick={() => checkout.mutate()} disabled={checkout.isPending} className="w-full">
+        {checkout.isPending ? 'Procesando...' : isDemoMode ? 'Pagar y confirmar cita (Demo)' : 'Pagar con Stripe'}
       </Button>
     </div>
   );
@@ -94,18 +71,18 @@ function RetryExecution({ bookingId }: { bookingId: string }) {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  DRAFT:                { label: 'Borrador',              color: 'bg-gray-100 text-gray-700',     icon: FileText },
-  SEARCHING:            { label: 'Buscando cita',         color: 'bg-blue-100 text-blue-700',     icon: Search },
-  PRE_CONFIRMED:        { label: 'Cita encontrada',       color: 'bg-amber-100 text-amber-700',   icon: Bell },
-  PENDING_PAYMENT:      { label: 'Pendiente de pago',     color: 'bg-yellow-100 text-yellow-700', icon: CreditCard },
-  PAID:                 { label: 'Pagado',                color: 'bg-blue-100 text-blue-700',     icon: CreditCard },
-  IN_PROGRESS:          { label: 'En gestión',            color: 'bg-indigo-100 text-indigo-700', icon: Clock },
-  CONFIRMED:            { label: 'Confirmado',            color: 'bg-green-100 text-green-700',   icon: CheckCircle },
-  COMPLETED:            { label: 'Completado',            color: 'bg-green-100 text-green-700',   icon: CheckCircle },
-  ERROR:                { label: 'Error',                 color: 'bg-red-100 text-red-700',       icon: XCircle },
-  REQUIRES_USER_ACTION: { label: 'Requiere acción',       color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
-  CANCELLED:            { label: 'Cancelado',             color: 'bg-gray-100 text-gray-500',     icon: XCircle },
-  EXPIRED:              { label: 'Expirado',              color: 'bg-gray-100 text-gray-500',     icon: XCircle },
+  DRAFT:                { label: 'Borrador',           color: 'bg-gray-100 text-gray-700',     icon: FileText },
+  SEARCHING:            { label: 'Buscando cita',      color: 'bg-blue-100 text-blue-700',     icon: Search },
+  PRE_CONFIRMED:        { label: 'Cita disponible',    color: 'bg-amber-100 text-amber-700',   icon: Bell },
+  PENDING_PAYMENT:      { label: 'Pendiente de pago',  color: 'bg-yellow-100 text-yellow-700', icon: CreditCard },
+  PAID:                 { label: 'Pagado',             color: 'bg-blue-100 text-blue-700',     icon: CreditCard },
+  IN_PROGRESS:          { label: 'En gestión',         color: 'bg-indigo-100 text-indigo-700', icon: Clock },
+  CONFIRMED:            { label: 'Confirmado',         color: 'bg-green-100 text-green-700',   icon: CheckCircle },
+  COMPLETED:            { label: 'Completado',         color: 'bg-green-100 text-green-700',   icon: CheckCircle },
+  ERROR:                { label: 'Error',              color: 'bg-red-100 text-red-700',       icon: XCircle },
+  REQUIRES_USER_ACTION: { label: 'Requiere acción',    color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
+  CANCELLED:            { label: 'Cancelado',          color: 'bg-gray-100 text-gray-500',     icon: XCircle },
+  EXPIRED:              { label: 'Expirado',           color: 'bg-gray-100 text-gray-500',     icon: XCircle },
 };
 
 export default function BookingDetailPage({ params }: { params: { id: string } }) {
@@ -184,7 +161,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
           )}
           {booking.paymentDeadline && booking.status === 'PRE_CONFIRMED' && (
             <div>
-              <p className="text-xs text-muted-foreground">Confirmar antes de</p>
+              <p className="text-xs text-muted-foreground">Pagar antes de</p>
               <p className="text-amber-700 font-medium">{formatDate(booking.paymentDeadline)}</p>
             </div>
           )}
@@ -197,7 +174,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
         </div>
       </div>
 
-      {/* Applicant */}
+      {/* Solicitante */}
       <div className="bg-white rounded-lg border p-6">
         <div className="flex items-center gap-2 mb-3">
           <User className="h-4 w-4 text-muted-foreground" />
@@ -207,7 +184,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
         <p className="text-xs text-muted-foreground">{booking.applicantProfile?.documentType} · {booking.applicantProfile?.documentNumber}</p>
       </div>
 
-      {/* Appointment — only show full details when CONFIRMED/COMPLETED */}
+      {/* Cita — solo visible cuando está CONFIRMED/COMPLETED */}
       {booking.appointment && isConfirmed && (
         <div className="bg-white rounded-lg border p-6">
           <div className="flex items-center gap-2 mb-3">
@@ -226,7 +203,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
         </div>
       )}
 
-      {/* Payment info */}
+      {/* Pago */}
       {booking.payment && (
         <div className="bg-white rounded-lg border p-6">
           <div className="flex items-center gap-2 mb-3">
@@ -243,7 +220,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
         </div>
       )}
 
-      {/* Searching status info */}
+      {/* SEARCHING */}
       {booking.status === 'SEARCHING' && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 flex items-start gap-3">
           <Search className="h-4 w-4 text-blue-600 mt-0.5 shrink-0 animate-pulse" />
@@ -254,29 +231,28 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
         </div>
       )}
 
-      {/* PRE_CONFIRMED — confirm to get details */}
+      {/* PRE_CONFIRMED — pagar para confirmar */}
       {booking.status === 'PRE_CONFIRMED' && (
-        <PreConfirmedPayment bookingId={params.id} paymentDeadline={booking.paymentDeadline} />
+        <PreConfirmedPayment
+          bookingId={params.id}
+          procedure={booking.procedure}
+          paymentDeadline={booking.paymentDeadline}
+        />
       )}
 
-      {/* DRAFT — pay to start */}
-      {booking.status === 'DRAFT' && (
-        <DraftPayment bookingId={params.id} procedure={booking.procedure} />
-      )}
-
-      {/* ERROR with payment done — allow retry */}
+      {/* ERROR con pago hecho — reintentar */}
       {booking.status === 'ERROR' && booking.payment?.status === 'PAID' && (
         <RetryExecution bookingId={params.id} />
       )}
 
-      {/* Manual action required */}
+      {/* Acción manual requerida */}
       {booking.status === 'REQUIRES_USER_ACTION' && booking.procedure?.connector?.baseUrl && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-5">
           <div className="flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-medium text-amber-800">Acción requerida</p>
-              <p className="text-xs text-amber-700 mt-1">Tus datos están listos. Completa la reserva en el portal oficial.</p>
+              <p className="text-xs text-amber-700 mt-1">Tus datos están listos. Completá la reserva en el portal oficial.</p>
               <a href={booking.procedure.connector.baseUrl} target="_blank" rel="noopener noreferrer">
                 <Button size="sm" variant="outline" className="mt-3">Ir al portal oficial</Button>
               </a>

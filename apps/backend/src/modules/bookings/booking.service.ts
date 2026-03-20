@@ -5,9 +5,6 @@ import { auditService } from '../audit/audit.service';
 import { notificationService } from '../notifications/notification.service';
 import { encrypt } from '../../lib/crypto';
 
-// Use string literals to avoid Prisma client enum import issues
-type BookingStatusType = 'DRAFT' | 'SEARCHING' | 'PRE_CONFIRMED' | 'PENDING_PAYMENT' | 'PAID' | 'IN_PROGRESS' | 'CONFIRMED' | 'COMPLETED' | 'ERROR' | 'REQUIRES_USER_ACTION' | 'CANCELLED' | 'REFUNDED' | 'EXPIRED';
-
 export const bookingService = {
   async createDraft(userId: string, data: {
     applicantProfileId: string;
@@ -33,7 +30,7 @@ export const bookingService = {
         applicantProfileId: data.applicantProfileId,
         procedureId: data.procedureId,
         formData: encryptedFormData,
-        status: 'DRAFT',
+        status: 'SEARCHING', // arranca buscando de inmediato, sin pago previo
         preferredDateFrom: data.preferredDateFrom ? new Date(data.preferredDateFrom) : undefined,
         preferredDateTo: data.preferredDateTo ? new Date(data.preferredDateTo) : undefined,
         preferredTimeSlot: data.preferredTimeSlot,
@@ -41,6 +38,10 @@ export const bookingService = {
     });
 
     await auditService.log({ userId, action: 'CREATE', entityType: 'BookingRequest', entityId: booking.id });
+
+    // Arrancar búsqueda en background sin bloquear la respuesta
+    bookingService._runSearchLoop(booking.id).catch(() => {});
+
     return booking;
   },
 
@@ -52,36 +53,10 @@ export const bookingService = {
     if (!booking) throw new AppError(404, 'Reserva no encontrada', 'BOOKING_NOT_FOUND');
 
     const validationResult = { isValid: true, missingFields: [] as string[], warnings: [] as string[] };
-
     return prisma.bookingRequest.update({
       where: { id: bookingId },
       data: { validationResult, eligibilityResult: { checked: true, eligible: true } },
     });
-  },
-
-  // Called after payment confirmed — starts background search
-  async startSearching(bookingId: string) {
-    const booking = await prisma.bookingRequest.findUnique({
-      where: { id: bookingId },
-      include: { procedure: { include: { connector: true } }, applicantProfile: true },
-    });
-    if (!booking) return;
-
-    await prisma.bookingRequest.update({
-      where: { id: bookingId },
-      data: { status: 'SEARCHING' },
-    });
-
-    await notificationService.send({
-      userId: booking.userId,
-      title: 'Búsqueda de cita iniciada',
-      subject: 'Estamos buscando tu cita',
-      body: `Hemos recibido tu pago y estamos buscando una cita disponible para "${booking.procedure.name}". Te notificaremos cuando encontremos una.`,
-      metadata: { bookingId },
-    });
-
-    // Run search in background (non-blocking)
-    bookingService._runSearchLoop(bookingId).catch(() => {});
   },
 
   async _runSearchLoop(bookingId: string) {
@@ -100,7 +75,7 @@ export const bookingService = {
       const adapterConnector = connector ? connectorRegistry.get(connector.slug) : null;
 
       if (!adapterConnector?.getAvailability) {
-        // No connector — simulate finding a slot
+        // Sin conector — simular slot encontrado
         await bookingService._confirmSlot(booking, {
           appointmentDate: bookingService._pickDateInRange(booking.preferredDateFrom, booking.preferredDateTo, booking.preferredTimeSlot),
           appointmentTime: booking.preferredTimeSlot === 'afternoon' ? '15:00' : '10:00',
@@ -132,17 +107,13 @@ export const bookingService = {
           return;
         }
       } catch {
-        // retry on error
+        // reintentar
       }
 
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
     }
 
-    // Exhausted attempts
-    await prisma.bookingRequest.update({
-      where: { id: bookingId },
-      data: { status: 'ERROR' },
-    });
+    await prisma.bookingRequest.update({ where: { id: bookingId }, data: { status: 'ERROR' } });
   },
 
   async _confirmSlot(booking: any, slot: {
@@ -152,6 +123,7 @@ export const bookingService = {
     confirmationCode?: string;
   }) {
     const appointmentDate = new Date(slot.appointmentDate);
+    // Deadline para pagar: 24h antes de la cita
     const paymentDeadline = new Date(appointmentDate.getTime() - 24 * 60 * 60 * 1000);
 
     await prisma.bookingRequest.update({
@@ -165,6 +137,7 @@ export const bookingService = {
       },
     });
 
+    // Guardar cita internamente (oculta hasta que pague)
     const existing = await prisma.appointment.findUnique({ where: { bookingRequestId: booking.id } });
     if (!existing) {
       await prisma.appointment.create({
@@ -174,16 +147,16 @@ export const bookingService = {
           appointmentDate,
           appointmentTime: slot.appointmentTime,
           location: slot.location,
-          instructions: 'Trae tu documentación original.',
+          instructions: 'Traé tu documentación original.',
         },
       });
     }
 
     await notificationService.send({
       userId: booking.userId,
-      title: '¡Cita encontrada! Confirma tu pago',
-      subject: 'Hemos encontrado una cita disponible',
-      body: `Hemos encontrado una cita para "${booking.procedure.name}". Tienes hasta el ${paymentDeadline.toLocaleDateString('es-ES')} para confirmar. Si no confirmas, la cita será liberada.`,
+      title: '¡Cita disponible! Realizá el pago para confirmarla',
+      subject: 'Encontramos una cita disponible',
+      body: `Encontramos una cita para "${booking.procedure.name}". Tenés hasta el ${paymentDeadline.toLocaleDateString('es-ES')} para pagar y confirmarla. Si no pagás, la cita se libera.`,
       metadata: { bookingId: booking.id, paymentDeadline: paymentDeadline.toISOString() },
     });
   },
@@ -196,12 +169,13 @@ export const bookingService = {
     return base;
   },
 
+  // Llamado después del pago en PRE_CONFIRMED → mueve a CONFIRMED y revela detalles
   async confirmAfterPayment(bookingId: string, userId: string) {
     const booking = await prisma.bookingRequest.findFirst({
-      where: { id: bookingId, userId },
+      where: { id: bookingId, userId, status: 'PRE_CONFIRMED' },
       include: { procedure: true, appointment: true },
     });
-    if (!booking) return;
+    if (!booking) throw new AppError(404, 'Reserva no encontrada o no está en estado PRE_CONFIRMED', 'BOOKING_NOT_FOUND');
 
     await prisma.bookingRequest.update({
       where: { id: bookingId },
@@ -214,33 +188,27 @@ export const bookingService = {
         userId,
         title: 'Cita confirmada',
         subject: `Tu cita para ${booking.procedure.name} está confirmada`,
-        body: `Tu cita ha sido confirmada.\n\nFecha: ${new Date(appt.appointmentDate).toLocaleDateString('es-ES')}\nHora: ${appt.appointmentTime}\nLugar: ${appt.location || 'Por confirmar'}\nCódigo: ${appt.confirmationCode}\n\n${appt.instructions || ''}`,
+        body: `Tu cita fue confirmada.\n\nFecha: ${new Date(appt.appointmentDate).toLocaleDateString('es-ES')}\nHora: ${appt.appointmentTime}\nLugar: ${appt.location || 'Por confirmar'}\nCódigo: ${appt.confirmationCode}\n\n${appt.instructions || ''}`,
         metadata: { bookingId, appointmentDate: appt.appointmentDate, confirmationCode: appt.confirmationCode },
       });
     }
   },
 
+  // Flujo legacy — ejecución manual post-pago
   async executeBooking(bookingId: string, userId: string) {
     const booking = await prisma.bookingRequest.findFirst({
       where: { id: bookingId, userId, status: { in: ['PAID', 'ERROR'] } },
       include: { procedure: { include: { connector: true } }, applicantProfile: true },
     });
-
     if (!booking) throw new AppError(404, 'Reserva no encontrada o no pagada', 'BOOKING_NOT_FOUND');
 
     const connector = booking.procedure.connector;
-
     await prisma.bookingRequest.update({ where: { id: bookingId }, data: { status: 'IN_PROGRESS' } });
 
     if (!connector || connector.integrationType === 'MANUAL_ASSISTED' || connector.status !== 'ACTIVE') {
       await prisma.bookingRequest.update({ where: { id: bookingId }, data: { status: 'REQUIRES_USER_ACTION' } });
       await auditService.log({ userId, action: 'BOOKING_ATTEMPT', entityType: 'BookingRequest', entityId: bookingId, after: { mode: 'MANUAL_ASSISTED' } });
-      return {
-        mode: 'MANUAL_ASSISTED',
-        instructions: 'Este trámite requiere completarse manualmente.',
-        portalUrl: booking.procedure.connector?.baseUrl,
-        preparedData: { message: 'Sus datos están listos.' },
-      };
+      return { mode: 'MANUAL_ASSISTED', instructions: 'Este trámite requiere completarse manualmente.', portalUrl: booking.procedure.connector?.baseUrl };
     }
 
     const adapterConnector = connectorRegistry.get(connector.slug);

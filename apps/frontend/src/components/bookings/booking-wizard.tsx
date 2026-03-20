@@ -11,17 +11,15 @@ interface WizardProps {
   procedure: any;
 }
 
-const STEPS = ['Solicitante', 'Preferencias', 'Datos', 'Revisión', 'Pago'];
+const STEPS = ['Solicitante', 'Preferencias', 'Datos', 'Revisión'];
 
 export function BookingWizard({ procedure }: WizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [selectedProfile, setSelectedProfile] = useState('');
   const [formData, setFormData] = useState<Record<string, string>>({});
-  const [bookingId, setBookingId] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Date preferences
   const [preferredDateFrom, setPreferredDateFrom] = useState('');
   const [preferredDateTo, setPreferredDateTo] = useState('');
   const [preferredTimeSlot, setPreferredTimeSlot] = useState<'morning' | 'afternoon' | ''>('');
@@ -50,23 +48,17 @@ export function BookingWizard({ procedure }: WizardProps) {
     return data;
   };
 
-  const handleContinueFromStep0 = () => {
-    setErrorMsg('');
-    if (!selectedProfile) return;
-    setStep(1);
-  };
-
   const handleContinueFromStep1 = () => {
     setErrorMsg('');
     if (!preferredDateFrom || !preferredDateTo) {
-      setErrorMsg('Selecciona un rango de fechas.');
+      setErrorMsg('Seleccioná un rango de fechas.');
       return;
     }
     const profile = profiles.find(p => p.id === selectedProfile);
     if (profile) setFormData(buildFormDataFromProfile(profile));
     const fields: any[] = procedure.formSchema?.fields || [];
     if (fields.length === 0) {
-      createBooking.mutate();
+      setStep(3); // saltar datos, ir a revisión
     } else {
       setStep(2);
     }
@@ -82,31 +74,11 @@ export function BookingWizard({ procedure }: WizardProps) {
       preferredTimeSlot: preferredTimeSlot || undefined,
     }),
     onSuccess: (res) => {
-      setErrorMsg('');
-      setBookingId(res.data.data.id);
-      setStep(3);
+      // Redirigir al detalle — ahí se ve el estado SEARCHING y luego PRE_CONFIRMED
+      router.push(`/bookings/${res.data.data.id}`);
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.error?.message || 'Error al crear el expediente. Intenta de nuevo.';
-      setErrorMsg(msg);
-    },
-  });
-
-  const isDemoMode = process.env.NEXT_PUBLIC_STRIPE_DEMO_MODE === 'true';
-
-  const createCheckout = useMutation({
-    mutationFn: () => isDemoMode
-      ? api.post('/payments/demo-checkout', { bookingRequestId: bookingId })
-      : api.post('/payments/checkout', { bookingRequestId: bookingId }),
-    onSuccess: (res) => {
-      if (isDemoMode) {
-        router.push(`/bookings/${bookingId}/success?demo=true`);
-      } else {
-        window.location.href = res.data.data.url;
-      }
-    },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.error?.message || 'Error al iniciar el pago. Intenta de nuevo.';
+      const msg = err?.response?.data?.error?.message || 'Error al crear el expediente. Intentá de nuevo.';
       setErrorMsg(msg);
     },
   });
@@ -146,17 +118,17 @@ export function BookingWizard({ procedure }: WizardProps) {
           </div>
         )}
 
-        {/* Step 0: Select applicant */}
+        {/* Step 0: Solicitante */}
         {step === 0 && (
           <div className="space-y-4">
-            <h3 className="font-medium">Selecciona el solicitante</h3>
+            <h3 className="font-medium">Seleccioná el solicitante</h3>
             {profilesLoading ? (
               <div className="space-y-2">
                 {[...Array(2)].map((_, i) => <div key={i} className="h-14 bg-muted rounded-md animate-pulse" />)}
               </div>
             ) : profiles.length === 0 ? (
               <div className="text-sm text-muted-foreground">
-                No tienes perfiles de solicitante.{' '}
+                No tenés perfiles de solicitante.{' '}
                 <button onClick={() => router.push('/profile')} className="text-primary hover:underline">Crear perfil</button>
               </div>
             ) : (
@@ -182,36 +154,30 @@ export function BookingWizard({ procedure }: WizardProps) {
                 ))}
               </div>
             )}
-            <Button onClick={handleContinueFromStep0} disabled={!selectedProfile || profilesLoading} className="w-full">
+            <Button onClick={() => { setErrorMsg(''); setStep(1); }} disabled={!selectedProfile || profilesLoading} className="w-full">
               Continuar
             </Button>
           </div>
         )}
 
-        {/* Step 1: Date preferences */}
+        {/* Step 1: Preferencias */}
         {step === 1 && (
           <div className="space-y-5">
             <h3 className="font-medium">Preferencias de fecha y horario</h3>
             <p className="text-sm text-muted-foreground">
-              Indica en qué rango de fechas y horario prefieres tu cita. Buscaremos la primera disponible dentro de tus preferencias.
+              Indicá en qué rango de fechas y horario preferís tu cita. Vamos a buscar la primera disponible dentro de tus preferencias.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Desde <span className="text-destructive">*</span></label>
-                <input
-                  type="date"
-                  min={today}
-                  value={preferredDateFrom}
+                <input type="date" min={today} value={preferredDateFrom}
                   onChange={e => setPreferredDateFrom(e.target.value)}
                   className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Hasta <span className="text-destructive">*</span></label>
-                <input
-                  type="date"
-                  min={preferredDateFrom || today}
-                  value={preferredDateTo}
+                <input type="date" min={preferredDateFrom || today} value={preferredDateTo}
                   onChange={e => setPreferredDateTo(e.target.value)}
                   className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
@@ -225,9 +191,7 @@ export function BookingWizard({ procedure }: WizardProps) {
                   { value: 'morning', label: 'Mañana', sublabel: 'Antes de las 14:00', icon: Sun },
                   { value: 'afternoon', label: 'Tarde', sublabel: 'Después de las 14:00', icon: Sunset },
                 ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
+                  <button key={opt.value} type="button"
                     onClick={() => setPreferredTimeSlot(opt.value as any)}
                     className={cn(
                       'flex flex-col items-center gap-1 p-3 border rounded-md text-sm transition-colors',
@@ -248,7 +212,7 @@ export function BookingWizard({ procedure }: WizardProps) {
           </div>
         )}
 
-        {/* Step 2: Form fields */}
+        {/* Step 2: Datos del trámite */}
         {step === 2 && (
           <div className="space-y-4">
             <h3 className="font-medium">Datos del trámite</h3>
@@ -259,15 +223,13 @@ export function BookingWizard({ procedure }: WizardProps) {
                   {field.required && <span className="text-destructive ml-1">*</span>}
                 </label>
                 {field.type === 'textarea' ? (
-                  <textarea
-                    value={formData[field.name] || ''}
+                  <textarea value={formData[field.name] || ''}
                     onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
                     rows={3}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 ) : field.type === 'select' ? (
-                  <select
-                    value={formData[field.name] || ''}
+                  <select value={formData[field.name] || ''}
                     onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
@@ -275,9 +237,7 @@ export function BookingWizard({ procedure }: WizardProps) {
                     {field.options?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 ) : (
-                  <input
-                    type={field.type || 'text'}
-                    value={formData[field.name] || ''}
+                  <input type={field.type || 'text'} value={formData[field.name] || ''}
                     onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
                     className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
@@ -286,14 +246,12 @@ export function BookingWizard({ procedure }: WizardProps) {
             ))}
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => { setErrorMsg(''); setStep(1); }}>Atrás</Button>
-              <Button onClick={() => createBooking.mutate()} disabled={createBooking.isPending} className="flex-1">
-                {createBooking.isPending ? 'Guardando...' : 'Continuar'}
-              </Button>
+              <Button onClick={() => { setErrorMsg(''); setStep(3); }} className="flex-1">Continuar</Button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Review */}
+        {/* Step 3: Revisión */}
         {step === 3 && (
           <div className="space-y-4">
             <h3 className="font-medium">Revisión del expediente</h3>
@@ -306,43 +264,13 @@ export function BookingWizard({ procedure }: WizardProps) {
                 <p key={k}><span className="font-medium capitalize">{k}:</span> {v}</p>
               ))}
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800">
-              Al continuar, autorizas a Gestor de Citas Oficiales a gestionar este trámite en tu nombre. Una vez realizado el pago, buscaremos la primera cita disponible dentro de tus preferencias y te notificaremos.
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-xs text-blue-800">
+              Al confirmar, vamos a buscar la primera cita disponible dentro de tus preferencias. Cuando la encontremos, te notificamos y podés pagar para confirmarla.
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => { setErrorMsg(''); setStep(fields.length > 0 ? 2 : 1); }}>Atrás</Button>
-              <Button onClick={() => { setErrorMsg(''); setStep(4); }} className="flex-1">Ir al pago</Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Payment */}
-        {step === 4 && (
-          <div className="space-y-4">
-            <h3 className="font-medium">Pago del servicio</h3>
-            <div className="border rounded-md p-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span>Gestión: {procedure.name}</span>
-                <span className="font-medium">
-                  {procedure.serviceFee ? `${procedure.serviceFee} ${procedure.currency}` : 'Gratuito'}
-                </span>
-              </div>
-              <div className="border-t pt-2 flex justify-between font-medium">
-                <span>Total</span>
-                <span>{procedure.serviceFee ? `${procedure.serviceFee} ${procedure.currency}` : '0,00 EUR'}</span>
-              </div>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-xs text-blue-800">
-              Tras el pago, buscaremos tu cita en segundo plano. Recibirás una notificación cuando encontremos una disponible dentro de tus preferencias.
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => { setErrorMsg(''); setStep(3); }}>Atrás</Button>
-              <Button
-                onClick={() => createCheckout.mutate()}
-                disabled={createCheckout.isPending}
-                className="flex-1"
-              >
-                {createCheckout.isPending ? 'Procesando...' : isDemoMode ? 'Confirmar pago (Demo)' : 'Pagar con Stripe'}
+              <Button onClick={() => createBooking.mutate()} disabled={createBooking.isPending} className="flex-1">
+                {createBooking.isPending ? 'Iniciando búsqueda...' : 'Confirmar y buscar cita'}
               </Button>
             </div>
           </div>
