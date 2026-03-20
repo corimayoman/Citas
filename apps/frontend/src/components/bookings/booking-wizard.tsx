@@ -21,10 +21,12 @@ export function BookingWizard({ procedure }: WizardProps) {
   const [bookingId, setBookingId] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const { data: profilesData } = useQuery({
+  const { data: profilesData, isLoading: profilesLoading } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => api.get('/users/me/profiles').then(r => r.data.data),
   });
+
+  const profiles: any[] = Array.isArray(profilesData) ? profilesData : [];
 
   const createBooking = useMutation({
     mutationFn: () => api.post('/bookings', {
@@ -91,7 +93,13 @@ export function BookingWizard({ procedure }: WizardProps) {
         {step === 0 && (
           <div className="space-y-4">
             <h3 className="font-medium">Selecciona el solicitante</h3>
-            {profilesData?.length === 0 ? (
+            {profilesLoading ? (
+              <div className="space-y-2">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="h-14 bg-muted rounded-md animate-pulse" />
+                ))}
+              </div>
+            ) : profiles.length === 0 ? (
               <div className="text-sm text-muted-foreground">
                 No tienes perfiles de solicitante.{' '}
                 <button onClick={() => router.push('/profile')} className="text-primary hover:underline">
@@ -100,7 +108,7 @@ export function BookingWizard({ procedure }: WizardProps) {
               </div>
             ) : (
               <div className="space-y-2">
-                {profilesData?.map((p: any) => (
+                {profiles.map((p: any) => (
                   <label key={p.id} className={cn(
                     'flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors',
                     selectedProfile === p.id ? 'border-primary bg-accent' : 'hover:bg-muted'
@@ -121,7 +129,7 @@ export function BookingWizard({ procedure }: WizardProps) {
                 ))}
               </div>
             )}
-            <Button onClick={() => { setErrorMsg(''); setStep(1); }} disabled={!selectedProfile} className="w-full">
+            <Button onClick={() => { setErrorMsg(''); setStep(1); }} disabled={!selectedProfile || profilesLoading} className="w-full">
               Continuar
             </Button>
           </div>
