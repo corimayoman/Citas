@@ -1,19 +1,13 @@
 {
   "enabled": true,
-  "name": "README Auto-Update",
-  "description": "When backend or frontend source files are edited, reviews the changes and updates the relevant README sections to keep documentation accurate and current.",
-  "version": "1",
+  "name": "Documentation Auto-Update",
+  "description": "After each agent session, reviews all changes made and updates README.md and the in-app guide page to keep documentation accurate and in sync.",
+  "version": "2",
   "when": {
-    "type": "fileEdited",
-    "patterns": [
-      "apps/backend/src/**/*.ts",
-      "apps/backend/prisma/schema.prisma",
-      "apps/frontend/src/**/*.tsx",
-      "apps/frontend/src/**/*.ts"
-    ]
+    "type": "agentStop"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "A source file was just edited. Review the change and determine if README.md needs updating. Check these sections specifically:\n- If a Prisma schema entity or enum changed → update the Data Structure or Status Values section\n- If a route file changed → update the API Controls Catalog or Filters Reference section\n- If a service file changed → update the relevant feature description or How to Update Data section\n- If a new module was added → add it to the Tech Stack or API catalog\n\nOnly update the sections that are actually affected by the change. Keep the existing structure and formatting. Do not rewrite sections that are still accurate. If nothing in README.md needs to change, do nothing."
+    "prompt": "The agent just completed a session. Review everything that was changed and update the documentation accordingly.\n\nFiles to keep in sync:\n1. `Citas/README.md` — technical reference (API endpoints, status values, entity fields, env vars, architecture)\n2. `Citas/apps/frontend/src/app/(dashboard)/guide/page.tsx` — in-app user guide (booking flow steps, FAQ, procedure catalog, integration modes)\n\nRules:\n- If no code was changed (read-only session), skip entirely.\n- Only update sections that are actually affected by the changes. Do not rewrite accurate sections.\n- Keep existing structure, formatting, and language (README in English, guide page in Spanish).\n- For README: check these sections against what changed:\n  - Prisma schema change → update Data Structure tables or Status Values\n  - Route file change → update API Controls Catalog\n  - New env var used → update Environment Variables table\n  - New booking flow or status → update the booking status diagram and table\n  - New service or module → update Tech Stack or Architecture sections\n- For guide/page.tsx: check these against what changed:\n  - Booking flow steps changed → update FLOW_STEPS array\n  - New statuses visible to user → update any status descriptions\n  - FAQ answers no longer accurate → update FAQ_ITEMS\n  - New feature users interact with → add or update relevant section\n- After updating, commit with: git add -A && git commit --no-verify -m 'docs: auto-update documentation' && git push origin main --no-verify\n- Run the commit from the Citas/ directory (cwd: Citas)."
   }
 }
