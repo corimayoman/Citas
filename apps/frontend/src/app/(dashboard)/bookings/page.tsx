@@ -7,14 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Calendar, ChevronRight } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Borrador', color: 'bg-gray-100 text-gray-600' },
-  PENDING_PAYMENT: { label: 'Pendiente de pago', color: 'bg-yellow-100 text-yellow-700' },
-  PAID: { label: 'Pagado', color: 'bg-blue-100 text-blue-700' },
-  IN_PROGRESS: { label: 'En gestión', color: 'bg-indigo-100 text-indigo-700' },
-  COMPLETED: { label: 'Completado', color: 'bg-green-100 text-green-700' },
-  ERROR: { label: 'Error', color: 'bg-red-100 text-red-700' },
-  REQUIRES_USER_ACTION: { label: 'Requiere acción', color: 'bg-orange-100 text-orange-700' },
-  CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-500' },
+  DRAFT:                { label: 'Borrador',           color: 'bg-gray-100 text-gray-600' },
+  SEARCHING:            { label: 'Buscando cita',      color: 'bg-blue-100 text-blue-700' },
+  PRE_CONFIRMED:        { label: 'Cita encontrada',    color: 'bg-amber-100 text-amber-700' },
+  PENDING_PAYMENT:      { label: 'Pendiente de pago',  color: 'bg-yellow-100 text-yellow-700' },
+  PAID:                 { label: 'Pagado',             color: 'bg-blue-100 text-blue-700' },
+  IN_PROGRESS:          { label: 'En gestión',         color: 'bg-indigo-100 text-indigo-700' },
+  CONFIRMED:            { label: 'Confirmado',         color: 'bg-green-100 text-green-700' },
+  COMPLETED:            { label: 'Completado',         color: 'bg-green-100 text-green-700' },
+  ERROR:                { label: 'Error',              color: 'bg-red-100 text-red-700' },
+  REQUIRES_USER_ACTION: { label: 'Requiere acción',    color: 'bg-orange-100 text-orange-700' },
+  CANCELLED:            { label: 'Cancelado',          color: 'bg-gray-100 text-gray-500' },
+  EXPIRED:              { label: 'Expirado',           color: 'bg-gray-100 text-gray-500' },
 };
 
 export default function BookingsPage() {

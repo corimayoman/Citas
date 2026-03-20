@@ -3,6 +3,7 @@ import { PaymentStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { auditService } from '../audit/audit.service';
+import { bookingService } from '../bookings/booking.service';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2023-10-16' });
 
@@ -78,7 +79,7 @@ export const paymentService = {
 
       await prisma.bookingRequest.update({
         where: { id: bookingRequestId },
-        data: { status: 'PAID' },
+        data: { status: 'SEARCHING' },
       });
 
       // Generate invoice
@@ -95,6 +96,9 @@ export const paymentService = {
       }
 
       await auditService.log({ userId, action: 'PAYMENT', entityType: 'Payment', after: { status: 'PAID', sessionId: session.id } });
+
+      // Start background search
+      bookingService.startSearching(bookingRequestId).catch(() => {});
     }
 
     if (event.type === 'charge.refunded') {
@@ -116,7 +120,11 @@ export const paymentService = {
 
     const existingPayment = await prisma.payment.findUnique({ where: { bookingRequestId } });
     if (existingPayment?.status === PaymentStatus.PAID) {
-      throw new AppError(409, 'Esta reserva ya está pagada', 'ALREADY_PAID');
+      // Already paid — just trigger search if still in DRAFT/PAID
+      if (['DRAFT', 'PAID'].includes(booking.status)) {
+        bookingService.startSearching(bookingRequestId).catch(() => {});
+      }
+      return { demo: true, paymentId: existingPayment.id };
     }
 
     const payment = await prisma.payment.upsert({
@@ -134,12 +142,11 @@ export const paymentService = {
       update: { status: PaymentStatus.PAID, paidAt: new Date() },
     });
 
-    await prisma.bookingRequest.update({
-      where: { id: bookingRequestId },
-      data: { status: 'PAID' },
-    });
-
     await auditService.log({ userId, action: 'PAYMENT', entityType: 'Payment', entityId: payment.id, after: { status: 'DEMO_PAID' } });
+
+    // Start background search (non-blocking)
+    bookingService.startSearching(bookingRequestId).catch(() => {});
+
     return { demo: true, paymentId: payment.id };
   },
 

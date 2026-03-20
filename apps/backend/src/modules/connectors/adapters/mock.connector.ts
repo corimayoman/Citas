@@ -34,7 +34,7 @@ export class MockConnector implements IConnector {
     for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
       if (d.getDay() === 0 || d.getDay() === 6) continue; // skip weekends
       const dateStr = d.toISOString().split('T')[0];
-      ['09:00', '09:30', '10:00', '10:30', '11:00'].forEach((time, i) => {
+      ['09:00', '09:30', '10:00', '10:30', '11:00', '15:00', '15:30', '16:00'].forEach((time, i) => {
         slots.push({
           date: dateStr,
           time,

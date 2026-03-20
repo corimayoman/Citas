@@ -25,6 +25,9 @@ const createSchema = z.object({
   applicantProfileId: z.string().uuid(),
   procedureId: z.string().uuid(),
   formData: z.record(z.unknown()),
+  preferredDateFrom: z.string().optional(),
+  preferredDateTo: z.string().optional(),
+  preferredTimeSlot: z.enum(['morning', 'afternoon']).optional(),
 });
 
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
@@ -46,6 +49,14 @@ router.post('/:id/execute', async (req: Request, res: Response, next: NextFuncti
   try {
     const result = await bookingService.executeBooking(req.params.id, req.user!.userId);
     res.json({ data: result });
+  } catch (err) { next(err); }
+});
+
+// Called after PRE_CONFIRMED payment to move to CONFIRMED and send details
+router.post('/:id/confirm-payment', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await bookingService.confirmAfterPayment(req.params.id, req.user!.userId);
+    res.json({ data: { ok: true } });
   } catch (err) { next(err); }
 });
 

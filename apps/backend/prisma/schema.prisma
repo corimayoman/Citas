@@ -38,14 +38,18 @@ enum ComplianceLevel {
 
 enum BookingStatus {
   DRAFT
-  PENDING_PAYMENT
+  SEARCHING          // background job looking for appointment
+  PRE_CONFIRMED      // slot found, waiting for payment
+  PENDING_PAYMENT    // alias kept for compatibility
   PAID
   IN_PROGRESS
+  CONFIRMED          // paid + appointment details sent
   COMPLETED
   ERROR
   REQUIRES_USER_ACTION
   CANCELLED
   REFUNDED
+  EXPIRED            // payment window expired
 }
 
 enum PaymentStatus {
@@ -306,6 +310,10 @@ model BookingRequest {
   selectedDate       DateTime?
   selectedTime       String?
   notes              String?
+  preferredDateFrom  DateTime?  // user preference: search from
+  preferredDateTo    DateTime?  // user preference: search until
+  preferredTimeSlot  String?    // "morning" | "afternoon"
+  paymentDeadline    DateTime?  // 24h before appointment
   externalRef        String?       // reference from the official portal
   completedAt        DateTime?
   createdAt          DateTime      @default(now())
@@ -428,9 +436,11 @@ model Notification {
   userId    String
   channel   NotificationChannel
   status    NotificationStatus  @default(PENDING)
+  title     String?
   subject   String?
   body      String
   metadata  Json?
+  readAt    DateTime?
   sentAt    DateTime?
   createdAt DateTime            @default(now())
 
