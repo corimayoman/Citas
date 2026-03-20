@@ -104,6 +104,7 @@ model User {
   emailVerifyToken  String?
   resetPasswordToken String?
   resetPasswordExpiry DateTime?
+  emailVerifyExpires DateTime?
   consentGiven      Boolean   @default(false)
   consentDate       DateTime?
   consentVersion    String?

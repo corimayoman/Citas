@@ -96,4 +96,34 @@ export const authService = {
     await prisma.user.update({ where: { id: userId }, data: { mfaEnabled: true } });
     return { enabled: true };
   },
+
+  async sendVerificationEmail(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError(404, 'Usuario no encontrado', 'USER_NOT_FOUND');
+    if (user.isEmailVerified) throw new AppError(409, 'El email ya está verificado', 'ALREADY_VERIFIED');
+
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerifyToken: token, emailVerifyExpires: expiresAt },
+    });
+
+    const isDemoMode = process.env.STRIPE_DEMO_MODE === 'true';
+    return { sent: true, ...(isDemoMode && { demoToken: token }) };
+  },
+
+  async verifyEmail(token: string) {
+    const user = await prisma.user.findFirst({
+      where: { emailVerifyToken: token, emailVerifyExpires: { gt: new Date() } },
+    });
+    if (!user) throw new AppError(400, 'Token inválido o expirado', 'INVALID_TOKEN');
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isEmailVerified: true, emailVerifyToken: null, emailVerifyExpires: null },
+    });
+    return { verified: true };
+  },
 };

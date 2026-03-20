@@ -120,6 +120,7 @@ function NewProfileForm({ onClose }: { onClose: () => void }) {
 export default function ProfilePage() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [verifyMsg, setVerifyMsg] = useState('');
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -129,6 +130,23 @@ export default function ProfilePage() {
   const deleteProfile = useMutation({
     mutationFn: (id: string) => api.delete(`/users/me/profiles/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile'] }),
+  });
+
+  const sendVerification = useMutation({
+    mutationFn: () => api.post('/auth/send-verification'),
+    onSuccess: (res) => {
+      const demoToken = res.data.data.demoToken;
+      if (demoToken) {
+        // Demo mode: verify directly with the returned token
+        api.get(`/auth/verify-email?token=${demoToken}`).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['profile'] });
+          setVerifyMsg('Email verificado correctamente.');
+        });
+      } else {
+        setVerifyMsg('Se envió un email de verificación a tu dirección.');
+      }
+    },
+    onError: (err: any) => setVerifyMsg(err?.response?.data?.error?.message || 'Error al enviar verificación.'),
   });
 
   if (isLoading) {
@@ -162,10 +180,20 @@ export default function ProfilePage() {
         <div className="grid grid-cols-2 gap-4 pt-2 border-t text-sm">
           <div>
             <p className="text-muted-foreground text-xs">Email verificado</p>
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5">
               <CheckCircle className={`h-3.5 w-3.5 ${user?.isEmailVerified ? 'text-green-500' : 'text-gray-300'}`} />
               <span>{user?.isEmailVerified ? 'Sí' : 'No'}</span>
+              {!user?.isEmailVerified && (
+                <button
+                  onClick={() => { setVerifyMsg(''); sendVerification.mutate(); }}
+                  disabled={sendVerification.isPending}
+                  className="text-xs text-primary hover:underline disabled:opacity-50"
+                >
+                  {sendVerification.isPending ? 'Verificando...' : 'Verificar'}
+                </button>
+              )}
             </div>
+            {verifyMsg && <p className="text-xs text-green-600 mt-1">{verifyMsg}</p>}
           </div>
           <div>
             <p className="text-muted-foreground text-xs">Autenticación 2FA</p>

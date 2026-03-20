@@ -80,4 +80,19 @@ router.post('/mfa/enable', authenticate, async (req: Request, res: Response, nex
   } catch (err) { next(err); }
 });
 
+router.post('/send-verification', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await authService.sendVerificationEmail(req.user!.userId);
+    res.json({ data: result });
+  } catch (err) { next(err); }
+});
+
+router.get('/verify-email', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token } = z.object({ token: z.string() }).parse(req.query);
+    const result = await authService.verifyEmail(token);
+    res.json({ data: result });
+  } catch (err) { next(err); }
+});
+
 export default router;
