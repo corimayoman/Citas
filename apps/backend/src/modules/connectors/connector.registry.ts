@@ -20,6 +20,10 @@ class ConnectorRegistry {
       logger.warn(`Connector ${id} registered as MANUAL_ASSISTED — no automated booking`);
     }
     this.connectors.set(id, connector);
+    // Also register by slug (organizationSlug) for lookup from DB connector.slug
+    if (connector.metadata.organizationSlug) {
+      this.connectors.set(connector.metadata.organizationSlug, connector);
+    }
     logger.info(`Connector registered: ${id} (${integrationType})`);
   }
 

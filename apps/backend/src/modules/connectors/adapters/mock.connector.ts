@@ -47,13 +47,15 @@ export class MockConnector implements IConnector {
   }
 
   async book(bookingData: Record<string, unknown>): Promise<BookingResult> {
-    // Simulate successful booking
+    // Simulate successful booking — use provided date/time or generate defaults
     const confirmationCode = `MOCK-${Date.now()}`;
+    const appointmentDate = (bookingData.selectedDate as string) || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const appointmentTime = (bookingData.selectedTime as string) || '10:00';
     return {
       success: true,
       confirmationCode,
-      appointmentDate: bookingData.selectedDate as string,
-      appointmentTime: bookingData.selectedTime as string,
+      appointmentDate,
+      appointmentTime,
       location: 'Calle Ejemplo 123, Madrid',
       instructions: 'Traiga su DNI original y una copia. Llegue 10 minutos antes.',
       receiptData: {
