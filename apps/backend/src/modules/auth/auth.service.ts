@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { authenticator } from 'otplib';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../../lib/prisma';
@@ -8,7 +8,7 @@ import { AuthPayload } from '../../middleware/auth';
 import { auditService } from '../audit/audit.service';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '15m') as SignOptions['expiresIn'];
 const REFRESH_EXPIRES_DAYS = 30;
 
 export const authService = {
