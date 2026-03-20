@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
@@ -6,6 +7,41 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar, FileText, CreditCard, User, CheckCircle, AlertCircle, Clock, XCircle, RefreshCw } from 'lucide-react';
+
+function DraftPayment({ bookingId, procedure }: { bookingId: string; procedure: any }) {
+  const router = useRouter();
+  const isDemoMode = process.env.NEXT_PUBLIC_STRIPE_DEMO_MODE === 'true';
+  const [error, setError] = useState('');
+
+  const checkout = useMutation({
+    mutationFn: () => isDemoMode
+      ? api.post('/payments/demo-checkout', { bookingRequestId: bookingId })
+      : api.post('/payments/checkout', { bookingRequestId: bookingId }),
+    onSuccess: (res) => {
+      if (isDemoMode) {
+        api.post(`/bookings/${bookingId}/execute`).finally(() => {
+          router.push(`/bookings/${bookingId}/success?demo=true`);
+        });
+      } else {
+        window.location.href = res.data.data.url;
+      }
+    },
+    onError: (err: any) => setError(err?.response?.data?.error?.message || 'Error al procesar el pago.'),
+  });
+
+  return (
+    <div className="bg-white rounded-lg border p-5 space-y-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">Gestión: {procedure?.name}</span>
+        <span className="font-semibold">{procedure?.serviceFee ? `${procedure.serviceFee} ${procedure.currency}` : 'Gratuito'}</span>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <Button onClick={() => checkout.mutate()} disabled={checkout.isPending} className="w-full">
+        {checkout.isPending ? 'Procesando...' : isDemoMode ? 'Confirmar pago (Demo)' : 'Pagar con Stripe'}
+      </Button>
+    </div>
+  );
+}
 
 function RetryExecution({ bookingId }: { bookingId: string }) {
   const queryClient = useQueryClient();
@@ -168,17 +204,9 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
         </div>
       )}
 
-      {/* Draft — go to payment */}
+      {/* Draft — pay directly */}
       {booking.status === 'DRAFT' && (
-        <div className="bg-white rounded-lg border p-5 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Expediente en borrador</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Completa el pago para iniciar la gestión.</p>
-          </div>
-          <Link href={`/procedures/${booking.procedure?.id}`}>
-            <Button size="sm">Continuar</Button>
-          </Link>
-        </div>
+        <DraftPayment bookingId={params.id} procedure={booking.procedure} />
       )}
     </div>
   );
