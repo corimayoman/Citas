@@ -9,7 +9,7 @@ import { ArrowLeft, Calendar, FileText, CreditCard, User, CheckCircle, AlertCirc
 
 // PRE_CONFIRMED — usuario paga para confirmar y ver detalles
 function PreConfirmedPayment({ bookingId, procedure, paymentDeadline }: { bookingId: string; procedure: any; paymentDeadline?: string }) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const isDemoMode = process.env.NEXT_PUBLIC_STRIPE_DEMO_MODE === 'true';
   const [error, setError] = useState('');
 
@@ -19,7 +19,7 @@ function PreConfirmedPayment({ bookingId, procedure, paymentDeadline }: { bookin
       : api.post('/payments/checkout', { bookingRequestId: bookingId }),
     onSuccess: (res) => {
       if (isDemoMode) {
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: ['booking', bookingId] });
       } else {
         window.location.href = res.data.data.url;
       }
