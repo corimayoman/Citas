@@ -106,6 +106,43 @@ export const paymentService = {
     }
   },
 
+  async createDemoCheckout(userId: string, bookingRequestId: string) {
+    const booking = await prisma.bookingRequest.findFirst({
+      where: { id: bookingRequestId, userId },
+      include: { procedure: true },
+    });
+
+    if (!booking) throw new AppError(404, 'Reserva no encontrada', 'BOOKING_NOT_FOUND');
+
+    const existingPayment = await prisma.payment.findUnique({ where: { bookingRequestId } });
+    if (existingPayment?.status === PaymentStatus.PAID) {
+      throw new AppError(409, 'Esta reserva ya está pagada', 'ALREADY_PAID');
+    }
+
+    const payment = await prisma.payment.upsert({
+      where: { bookingRequestId },
+      create: {
+        userId,
+        bookingRequestId,
+        stripeSessionId: `demo_${Date.now()}`,
+        amount: booking.procedure.serviceFee ?? 0,
+        currency: booking.procedure.currency,
+        status: PaymentStatus.PAID,
+        paidAt: new Date(),
+        description: `[DEMO] Gestión de trámite: ${booking.procedure.name}`,
+      },
+      update: { status: PaymentStatus.PAID, paidAt: new Date() },
+    });
+
+    await prisma.bookingRequest.update({
+      where: { id: bookingRequestId },
+      data: { status: 'PAID' },
+    });
+
+    await auditService.log({ userId, action: 'PAYMENT', entityType: 'Payment', entityId: payment.id, after: { status: 'DEMO_PAID' } });
+    return { demo: true, paymentId: payment.id };
+  },
+
   async getUserPayments(userId: string) {
     return prisma.payment.findMany({
       where: { userId },

@@ -32,4 +32,12 @@ router.post('/checkout', async (req: Request, res: Response, next: NextFunction)
   } catch (err) { next(err); }
 });
 
+router.post('/demo-checkout', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { bookingRequestId } = z.object({ bookingRequestId: z.string().uuid() }).parse(req.body);
+    const result = await paymentService.createDemoCheckout(req.user!.userId, bookingRequestId);
+    res.json({ data: result });
+  } catch (err) { next(err); }
+});
+
 export default router;

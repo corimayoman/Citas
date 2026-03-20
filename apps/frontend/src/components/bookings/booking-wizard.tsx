@@ -45,10 +45,18 @@ export function BookingWizard({ procedure }: WizardProps) {
     },
   });
 
+  const isDemoMode = process.env.NEXT_PUBLIC_STRIPE_DEMO_MODE === 'true';
+
   const createCheckout = useMutation({
-    mutationFn: () => api.post('/payments/checkout', { bookingRequestId: bookingId }),
+    mutationFn: () => isDemoMode
+      ? api.post('/payments/demo-checkout', { bookingRequestId: bookingId })
+      : api.post('/payments/checkout', { bookingRequestId: bookingId }),
     onSuccess: (res) => {
-      window.location.href = res.data.data.url;
+      if (isDemoMode) {
+        router.push(`/bookings/${bookingId}/success?demo=true`);
+      } else {
+        window.location.href = res.data.data.url;
+      }
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.error?.message || 'Error al iniciar el pago. Intenta de nuevo.';
@@ -226,7 +234,7 @@ export function BookingWizard({ procedure }: WizardProps) {
                 disabled={createCheckout.isPending}
                 className="flex-1"
               >
-                {createCheckout.isPending ? 'Redirigiendo...' : 'Pagar con Stripe'}
+                {createCheckout.isPending ? 'Procesando...' : isDemoMode ? 'Confirmar pago (Demo)' : 'Pagar con Stripe'}
               </Button>
             </div>
           </div>
