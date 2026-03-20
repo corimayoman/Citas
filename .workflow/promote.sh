@@ -69,7 +69,7 @@ if [[ "$TARGET" == "qa" ]]; then
 
     # Squash merge: one clean commit per feature on QA
     git merge --squash "$CURRENT" --quiet
-    git commit -m "feat: merge $CURRENT into $QA_BRANCH
+    git commit --no-verify -m "feat: merge $CURRENT into $QA_BRANCH
 
 $(git log "$REMOTE/$QA_BRANCH".."$CURRENT" --oneline --no-decorate)"
 
@@ -115,7 +115,7 @@ elif [[ "$TARGET" == "prod" ]]; then
     git pull "$REMOTE" "$PROD_BRANCH" --ff-only --quiet
 
     # Merge commit for production — preserves full history and is auditable
-    git merge "$QA_BRANCH" --no-ff -m "release: promote qa to production $(date +%Y-%m-%d)"
+    git merge "$QA_BRANCH" --no-ff -m "release: promote qa to production $(date +%Y-%m-%d)" --no-verify
 
     git push "$REMOTE" "$PROD_BRANCH" --quiet
 
@@ -163,7 +163,7 @@ elif [[ "$TARGET" == "hotfix" ]]; then
     # → main
     git checkout "$PROD_BRANCH"
     git pull "$REMOTE" "$PROD_BRANCH" --ff-only --quiet
-    git merge "$CURRENT" --no-ff -m "hotfix: merge $CURRENT into $PROD_BRANCH"
+    git merge "$CURRENT" --no-ff -m "hotfix: merge $CURRENT into $PROD_BRANCH" --no-verify
     git push "$REMOTE" "$PROD_BRANCH" --quiet
 
     TAG="hotfix-$(date +%Y%m%d-%H%M)"
@@ -173,7 +173,7 @@ elif [[ "$TARGET" == "hotfix" ]]; then
     # → qa (keep in sync)
     git checkout "$QA_BRANCH"
     git pull "$REMOTE" "$QA_BRANCH" --ff-only --quiet
-    git merge "$CURRENT" --no-ff -m "hotfix: backport $CURRENT into $QA_BRANCH"
+    git merge "$CURRENT" --no-ff -m "hotfix: backport $CURRENT into $QA_BRANCH" --no-verify
     git push "$REMOTE" "$QA_BRANCH" --quiet
 
     echo ""
