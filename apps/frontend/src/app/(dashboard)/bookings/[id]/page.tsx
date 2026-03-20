@@ -14,14 +14,11 @@ function RetryExecution({ bookingId }: { bookingId: string }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booking', bookingId] }),
   });
   return (
-    <div className="bg-red-50 border border-red-200 rounded-lg p-5 flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-red-800">Error en la gestión</p>
-        <p className="text-xs text-red-600 mt-0.5">El pago fue procesado. Podés reintentar la ejecución.</p>
-      </div>
-      <Button size="sm" variant="outline" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+    <div className="bg-white border rounded-lg p-5 flex items-center justify-between">
+      <p className="text-sm text-muted-foreground">La gestión no pudo completarse automáticamente.</p>
+      <Button size="sm" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
         <RefreshCw className={`h-3.5 w-3.5 mr-1 ${mutation.isPending ? 'animate-spin' : ''}`} />
-        {mutation.isPending ? 'Reintentando...' : 'Reintentar'}
+        {mutation.isPending ? 'Procesando...' : 'Reintentar gestión'}
       </Button>
     </div>
   );

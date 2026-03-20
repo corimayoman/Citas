@@ -58,7 +58,7 @@ export const bookingService = {
 
   async executeBooking(bookingId: string, userId: string) {
     const booking = await prisma.bookingRequest.findFirst({
-      where: { id: bookingId, userId, status: BookingStatus.PAID },
+      where: { id: bookingId, userId, status: { in: [BookingStatus.PAID, BookingStatus.ERROR] } },
       include: { procedure: { include: { connector: true } }, applicantProfile: true },
     });
 
