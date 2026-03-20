@@ -153,7 +153,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
             <p className="text-sm font-medium">Expediente en borrador</p>
             <p className="text-xs text-muted-foreground mt-0.5">Completa el pago para iniciar la gestión.</p>
           </div>
-          <Link href={`/procedures/${booking.procedureId}`}>
+          <Link href={`/procedures/${booking.procedure?.id}`}>
             <Button size="sm">Continuar</Button>
           </Link>
         </div>

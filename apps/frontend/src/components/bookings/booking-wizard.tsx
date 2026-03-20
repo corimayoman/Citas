@@ -28,6 +28,48 @@ export function BookingWizard({ procedure }: WizardProps) {
 
   const profiles: any[] = Array.isArray(profilesData) ? profilesData : [];
 
+  // Map profile fields to form field names
+  const PROFILE_FIELD_MAP: Record<string, string> = {
+    firstName: '', lastName: '', fullName: '', nombre: '', apellidos: '',
+    documentNumber: '', documentType: '', dni: '', nie: '', passport: '',
+    nationality: '', nationalidad: '',
+    birthDate: '', fechaNacimiento: '',
+    email: '', phone: '', telefono: '',
+  };
+
+  const buildFormDataFromProfile = (profile: any): Record<string, string> => {
+    const data: Record<string, string> = {};
+    const fields: any[] = procedure.formSchema?.fields || [];
+    fields.forEach((field: any) => {
+      const key = field.name?.toLowerCase();
+      if (key?.includes('nombre') || key?.includes('firstname') || key === 'name') data[field.name] = profile.firstName;
+      else if (key?.includes('apellido') || key?.includes('lastname') || key?.includes('surname')) data[field.name] = profile.lastName;
+      else if (key?.includes('fullname') || key?.includes('nombrecompleto')) data[field.name] = `${profile.firstName} ${profile.lastName}`;
+      else if (key?.includes('document') || key === 'dni' || key === 'nie' || key === 'passport') data[field.name] = profile.documentNumber;
+      else if (key?.includes('nationality') || key?.includes('nacionalidad')) data[field.name] = profile.nationality;
+      else if (key?.includes('birth') || key?.includes('nacimiento')) data[field.name] = profile.birthDate ? new Date(profile.birthDate).toISOString().split('T')[0] : '';
+      else if (key === 'email') data[field.name] = profile.email || '';
+      else if (key?.includes('phone') || key?.includes('telefono')) data[field.name] = profile.phone || '';
+    });
+    return data;
+  };
+
+  const handleContinueFromStep0 = () => {
+    setErrorMsg('');
+    const profile = profiles.find(p => p.id === selectedProfile);
+    if (profile) {
+      const prefilled = buildFormDataFromProfile(profile);
+      setFormData(prefilled);
+    }
+    const fields: any[] = procedure.formSchema?.fields || [];
+    // If no extra fields beyond profile data, skip step 1
+    if (fields.length === 0) {
+      createBooking.mutate();
+    } else {
+      setStep(1);
+    }
+  };
+
   const createBooking = useMutation({
     mutationFn: () => api.post('/bookings', {
       applicantProfileId: selectedProfile,
@@ -137,7 +179,7 @@ export function BookingWizard({ procedure }: WizardProps) {
                 ))}
               </div>
             )}
-            <Button onClick={() => { setErrorMsg(''); setStep(1); }} disabled={!selectedProfile || profilesLoading} className="w-full">
+            <Button onClick={handleContinueFromStep0} disabled={!selectedProfile || profilesLoading} className="w-full">
               Continuar
             </Button>
           </div>
