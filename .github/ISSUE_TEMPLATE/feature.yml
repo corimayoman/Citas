@@ -1,0 +1,33 @@
+name: Feature
+description: Nueva funcionalidad o mejora
+labels: ["feature"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: ¿Qué funcionalidad querés agregar y por qué?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceptación
+      description: ¿Cómo sabemos que está terminado? Listá los criterios concretos.
+      placeholder: |
+        - [ ] El usuario puede...
+        - [ ] El sistema valida...
+    validations:
+      required: true
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Casos de prueba a implementar
+      description: Tests unitarios o de integración que deben acompañar esta feature.
+      placeholder: |
+        - describe('...') → it('happy path: ...')
+        - describe('...') → it('error case: ...')
+    validations:
+      required: false

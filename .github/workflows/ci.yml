@@ -67,28 +67,101 @@ jobs:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
 
       - name: Tests — backend
-        run: npm test
+        run: npm test -- --json --outputFile=test-report.json
         working-directory: apps/backend
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
           JWT_SECRET: ci-test-secret
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
 
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: apps/backend/test-report.json
+          retention-days: 30
+
+      - name: Tests — frontend
+        run: npm test -- --passWithNoTests
+        working-directory: apps/frontend
+
       - name: Lint — frontend
         run: npm run lint --if-present
         working-directory: apps/frontend
 
-  # ─── PR title check ────────────────────────────────────────────────────────
-  pr-title:
-    name: PR Title (Conventional Commits)
+      - name: Comment test results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'apps/backend/test-report.json';
+            if (!fs.existsSync(reportPath)) {
+              console.log('No test report found, skipping comment.');
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const passed = report.numPassedTests ?? 0;
+            const failed = report.numFailedTests ?? 0;
+            const skipped = report.numPendingTests ?? 0;
+            const icon = failed > 0 ? '❌' : '✅';
+            const body = [
+              `## ${icon} Resultados de tests — backend`,
+              '',
+              `| Estado | Cantidad |`,
+              `|--------|----------|`,
+              `| ✅ Pasados | ${passed} |`,
+              `| ❌ Fallados | ${failed} |`,
+              `| ⏭️ Omitidos | ${skipped} |`,
+              '',
+              `Ver artefacto completo en la pestaña **Actions → Artifacts → test-report**.`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+  # ─── PR checks ─────────────────────────────────────────────────────────────
+  pr-checks:
+    name: PR Checks
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - name: Check PR title
+      - name: Check PR title (Conventional Commits)
         run: |
           TITLE="${{ github.event.pull_request.title }}"
           PATTERN='^(feat|fix|hotfix|chore|docs|refactor|test|ci|perf|style|release)(\([a-zA-Z0-9_\-]+\))?: .{3,}'
           if ! echo "$TITLE" | grep -qE "$PATTERN"; then
-            echo "PR title does not follow Conventional Commits: $TITLE"
+            echo "❌ El título del PR no sigue Conventional Commits: $TITLE"
             exit 1
           fi
+
+      - name: Check issue reference in PR body
+        run: |
+          BODY="${{ github.event.pull_request.body }}"
+          if ! echo "$BODY" | grep -qE "(Closes|Refs|Fixes) #[0-9]+"; then
+            echo "❌ El PR debe referenciar un issue con 'Closes #N', 'Refs #N' o 'Fixes #N'."
+            echo "   Agregá la referencia en el cuerpo del PR antes de hacer merge."
+            exit 1
+          fi
+
+      - name: Check MOCKS.md update when mock modules changed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const mockModules = ['apps/backend/src/modules/connectors/', 'apps/backend/src/modules/payments/', 'apps/backend/src/modules/notifications/'];
+            const touchesMocks = files.some(f => mockModules.some(m => f.filename.startsWith(m)));
+            if (!touchesMocks) return;
+            const body = context.payload.pull_request.body || '';
+            const acknowledged = /(Updates MOCKS\.md|Mock unchanged|Implements real:)/i.test(body);
+            if (!acknowledged) {
+              core.setFailed('❌ Este PR modifica módulos mock. Agregá en el cuerpo del PR una de estas líneas:\n  - "Updates MOCKS.md"\n  - "Mock unchanged"\n  - "Implements real: <descripción>"');
+            }

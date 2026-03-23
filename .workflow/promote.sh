@@ -110,6 +110,22 @@ elif [[ "$TARGET" == "prod" ]]; then
   git log "$REMOTE/$PROD_BRANCH".."$QA_BRANCH" --oneline --no-decorate | sed 's/^/    /'
   echo ""
 
+  # ── QA Gate local: correr tests antes de promover a producción ──────────────
+  info "Corriendo QA gate local (tests + build)..."
+  if ! RUN_TESTS=true RUN_BUILD=true "$SCRIPT_DIR/validate.sh"; then
+    echo ""
+    error "QA gate falló. No se puede promover a producción."
+    error "Revisá los errores arriba y corregí antes de reintentar."
+    echo ""
+    warn "Si el problema es un test fallido, creá un issue con:"
+    echo "  gh issue create --label bug --title '[Bug] <descripción>' --body 'Falla detectada en QA gate al promover a producción'"
+    echo ""
+    exit 1
+  fi
+  echo ""
+  success "QA gate pasó. Procediendo con la promoción a producción."
+  echo ""
+
   if confirm "Merge ${BOLD}$QA_BRANCH${RESET} into ${BOLD}$PROD_BRANCH${RESET} (PRODUCTION RELEASE)?"; then
     git checkout "$PROD_BRANCH"
     git pull "$REMOTE" "$PROD_BRANCH" --ff-only --quiet

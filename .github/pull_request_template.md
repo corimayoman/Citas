@@ -1,29 +1,46 @@
-## Summary
+## Issue relacionado
 
-<!-- What does this PR do? One or two sentences. -->
+<!-- OBLIGATORIO: referenciar el issue que cierra este PR -->
+Closes #<!-- número de issue obligatorio -->
 
-## Type of change
+---
 
-- [ ] feat — new feature
-- [ ] fix — bug fix
-- [ ] hotfix — critical production fix
-- [ ] chore — maintenance, deps, config
-- [ ] docs — documentation only
-- [ ] refactor — no functional change
+## Resumen
+
+<!-- ¿Qué hace este PR? Una o dos oraciones. -->
+
+## Tipo de cambio
+
+- [ ] feat — nueva funcionalidad
+- [ ] fix — corrección de bug
+- [ ] hotfix — fix crítico en producción
+- [ ] chore — mantenimiento, deps, config
+- [ ] docs — solo documentación
+- [ ] refactor — sin cambio funcional
+
+## Tests agregados / modificados
+
+<!-- Listá los casos de prueba nuevos o modificados en este PR -->
+<!-- Formato: - [ ] describe('...') → it('...') -->
+
+- [ ] <!-- describe('...') → it('...') -->
+
+## Módulos mock modificados
+
+<!-- Si modificaste connectors/, payments/ o notifications/, indicá uno de los siguientes: -->
+<!-- - Updates MOCKS.md -->
+<!-- - Mock unchanged -->
+<!-- - Implements real: <descripción> -->
 
 ## Checklist
 
-- [ ] Branch follows naming convention (`feature/`, `fix/`, `hotfix/`)
-- [ ] Commit messages follow Conventional Commits
-- [ ] `gw validate` passes locally
-- [ ] No secrets or `.env` files committed
-- [ ] Relevant tests added or updated
-- [ ] PR title follows Conventional Commits format
+- [ ] La rama sigue la convención de nombres (`feature/`, `fix/`, `hotfix/`)
+- [ ] Los commits siguen Conventional Commits
+- [ ] `gw validate` pasa localmente
+- [ ] No hay secrets ni archivos `.env` commiteados
+- [ ] Tests relevantes agregados o actualizados
+- [ ] El título del PR sigue el formato Conventional Commits
 
-## Related issues
+## Notas para el reviewer
 
-<!-- Closes #123 -->
-
-## Notes for reviewer
-
-<!-- Anything the reviewer should know -->
+<!-- Cualquier cosa que el reviewer deba saber -->

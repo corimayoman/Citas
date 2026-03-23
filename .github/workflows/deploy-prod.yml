@@ -4,20 +4,73 @@ on:
   push:
     branches:
       - main
-  # Also trigger on release tags
   push:
     tags:
       - 'release-*'
 
 concurrency:
   group: deploy-prod
-  cancel-in-progress: false   # never cancel a running production deploy
+  cancel-in-progress: false   # nunca cancelar un deploy de producción en curso
 
 jobs:
+  # ─── QA Gate: tests deben pasar antes de deployar ─────────────────────────
+  qa-gate:
+    name: QA Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: gestor_citas_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+
+      - name: Tests — backend (QA Gate)
+        run: npm test
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+          JWT_SECRET: qa-gate-secret
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
+
+  # ─── Deploy a producción (solo si qa-gate pasa) ───────────────────────────
   deploy-prod:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    environment: production    # requires manual approval in GitHub environment settings
+    needs: qa-gate
+    environment: production    # requiere aprobación manual en GitHub environment settings
     timeout-minutes: 30
 
     steps:
@@ -47,14 +100,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
 
-      # ── Replace with your actual deployment step ──────────────────────────
       - name: Deploy backend to Production
-        run: echo "Deploy backend → Production"
+        run: |
+          curl -X POST "${{ secrets.PROD_BACKEND_DEPLOY_HOOK }}"
         env:
           DEPLOY_TOKEN: ${{ secrets.PROD_DEPLOY_TOKEN }}
 
       - name: Deploy frontend to Production
-        run: echo "Deploy frontend → Production"
+        run: |
+          curl -X POST "${{ secrets.PROD_FRONTEND_DEPLOY_HOOK }}"
         env:
           DEPLOY_TOKEN: ${{ secrets.PROD_DEPLOY_TOKEN }}
 
@@ -62,4 +116,3 @@ jobs:
         if: always()
         run: |
           echo "Production deployment ${{ job.status }} — ${{ github.ref }}"
-          # Add Slack/PagerDuty/email notification here

@@ -718,6 +718,63 @@ Branch model: `feature/*` and `fix/*` branch from `qa`. `hotfix/*` branches from
 
 ---
 
+## QA Environment
+
+A dedicated QA environment runs on Railway, isolated from production.
+
+### URLs
+
+| Service | URL |
+|---------|-----|
+| Backend QA | Configurar en secret `QA_BACKEND_URL` |
+| Frontend QA | Configurar en secret `QA_FRONTEND_URL` |
+
+### Credenciales de prueba
+
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| Admin | `admin@gestorcitas.app` | `Admin1234!` |
+| Usuario | `usuario@ejemplo.com` | `User1234!` |
+
+### Variables de entorno necesarias (GitHub Secrets)
+
+| Secret | Descripción |
+|--------|-------------|
+| `QA_BACKEND_DEPLOY_HOOK` | Deploy hook de Railway para el servicio `backend-qa` |
+| `QA_FRONTEND_DEPLOY_HOOK` | Deploy hook de Railway para el servicio `frontend-qa` |
+| `QA_BACKEND_URL` | URL pública del backend QA (sin `/api`) |
+| `QA_FRONTEND_URL` | URL pública del frontend QA |
+| `QA_DATABASE_URL` | Connection string de la base de datos QA |
+
+### Cómo crear el proyecto QA en Railway
+
+1. Crear proyecto `citas-qa` en Railway con servicios: `backend-qa`, `frontend-qa`, `postgres-qa`
+2. Configurar variables de entorno en `backend-qa`:
+   - `DATABASE_URL` → URL interna de `postgres-qa`
+   - `JWT_SECRET` → valor distinto al de producción
+   - `ENCRYPTION_KEY` → valor distinto al de producción
+   - `STRIPE_DEMO_MODE=true`
+   - `FRONTEND_URL` → URL de `frontend-qa`
+   - `NODE_ENV=production`
+3. Configurar variables de entorno en `frontend-qa`:
+   - `NEXT_PUBLIC_API_URL` → URL de `backend-qa` + `/api`
+   - `NEXT_PUBLIC_STRIPE_DEMO_MODE=true`
+4. Obtener los deploy hooks de Railway y agregarlos como secrets en GitHub
+
+### Ejecutar la Regression Suite contra QA
+
+```bash
+# Correr todos los tests apuntando al backend QA
+BACKEND_URL=<QA_BACKEND_URL> npm test --workspace=apps/backend
+
+# O disparar el workflow manualmente desde GitHub Actions
+# Actions → Regression — Daily → Run workflow
+```
+
+El workflow de regresión diaria (`regression.yml`) corre automáticamente a las 06:00 UTC contra `main`. Si falla, crea un issue con label `regression` automáticamente.
+
+---
+
 ## Legal disclaimer
 
 This application is an independent intermediary service. It does not represent, is not affiliated with, and has not been authorized by any government agency or public organization. All trademarks and names of public organizations belong to their respective owners.

@@ -1,0 +1,11 @@
+name: Chore
+description: Tarea técnica, refactor, actualización de dependencias u otra tarea de mantenimiento
+labels: ["chore"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: ¿Qué hay que hacer y por qué?
+    validations:
+      required: true

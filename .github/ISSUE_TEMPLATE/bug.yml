@@ -1,0 +1,39 @@
+name: Bug
+description: Algo está roto o no funciona como se espera
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción del problema
+      description: ¿Qué está pasando? ¿Cuál es el comportamiento incorrecto?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. Ir a...
+        2. Hacer click en...
+        3. Ver el error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento esperado
+      description: ¿Qué debería pasar en cambio?
+    validations:
+      required: true
+
+  - type: input
+    id: test
+    attributes:
+      label: Test fallido (si aplica)
+      description: Nombre del test que detecta este bug, si ya existe.
+      placeholder: "describe('...') → it('...')"
+    validations:
+      required: false

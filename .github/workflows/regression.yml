@@ -1,0 +1,123 @@
+name: Regression — Daily
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC todos los días contra main
+  workflow_dispatch:        # permite correrlo manualmente
+
+concurrency:
+  group: regression
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    name: Regression Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: gestor_citas_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+
+      - name: Run regression suite
+        id: tests
+        run: npm test -- --json --outputFile=regression-report.json
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+          JWT_SECRET: regression-test-secret
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0000000000000000000000000000000000000000000000000000000000000000' }}
+
+      - name: Upload regression report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-report-${{ github.run_id }}
+          path: apps/backend/regression-report.json
+          retention-days: 90
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            const title = `[Regression] Falla en suite - ${today}`;
+
+            // Buscar issues de regresión abiertos para detectar fallas consecutivas
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'regression',
+              state: 'open',
+            });
+
+            // Calcular antigüedad del issue más viejo con el mismo título base
+            const regressionBase = '[Regression] Falla en suite';
+            const oldIssues = openIssues.filter(i => i.title.startsWith(regressionBase));
+            const labels = ['regression'];
+
+            if (oldIssues.length > 0) {
+              const oldest = oldIssues.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0];
+              const ageMs = Date.now() - new Date(oldest.created_at).getTime();
+              const ageDays = ageMs / (1000 * 60 * 60 * 24);
+              if (ageDays >= 2) {
+                labels.push('critical');
+              }
+            }
+
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels,
+              body: [
+                `## Falla detectada en la suite de regresión`,
+                '',
+                `**Fecha:** ${today}`,
+                `**Rama:** \`main\``,
+                `**Run:** [Ver en GitHub Actions](${runUrl})`,
+                '',
+                `### Acción requerida`,
+                `Revisar el artefacto \`regression-report-${context.runId}\` en el run de Actions para ver los tests fallidos.`,
+                '',
+                `> Este issue fue creado automáticamente por el workflow de regresión diaria.`,
+              ].join('\n'),
+            });
