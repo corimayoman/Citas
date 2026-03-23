@@ -235,7 +235,7 @@ Las tareas están ordenadas por dependencia: los tests van primero porque el CI 
     - Instrucciones para ejecutar la Regression_Suite contra QA
     - _Requirements: 7.7, 7.8_
 
-- [ ] 16. Checkpoint final — verificar todo el workflow
+- [x] 16. Checkpoint final — verificar todo el workflow
   - Asegurarse de que todos los tests pasan, consultar si hay dudas antes de continuar.
 
 ## Notes

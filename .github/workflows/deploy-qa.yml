@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: deploy-qa
-  cancel-in-progress: false   # nunca cancelar un deploy de QA en curso
+  cancel-in-progress: false
 
 jobs:
   deploy-qa:
@@ -24,40 +24,24 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build backend
-        run: npm run build
-        working-directory: apps/backend
-
-      - name: Build frontend
-        run: npm run build
-        working-directory: apps/frontend
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.QA_BACKEND_URL }}/api
-
-      - name: Run migrations (QA)
-        run: npx prisma migrate deploy
-        working-directory: apps/backend
-        env:
-          DATABASE_URL: ${{ secrets.QA_DATABASE_URL }}
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
 
       - name: Deploy backend to QA
         continue-on-error: true
-        run: |
-          curl -s -X POST "${{ secrets.QA_BACKEND_DEPLOY_HOOK }}"
-          echo "Backend deploy hook triggered"
+        run: railway redeploy --service Citas-Backend-QA --yes
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deploy frontend to QA
         continue-on-error: true
-        run: |
-          curl -s -X POST "${{ secrets.QA_FRONTEND_DEPLOY_HOOK }}"
-          echo "Frontend deploy hook triggered"
+        run: railway redeploy --service Citas-Frontend-QA --yes
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Notify deployment
         if: always()
         run: |
           echo "QA deployment ${{ job.status }} — commit ${{ github.sha }}"
-          echo "Backend QA: ${{ secrets.QA_BACKEND_URL }}"
-          echo "Frontend QA: ${{ secrets.QA_FRONTEND_URL }}"
+          echo "Backend QA: https://citas-backend-qa.up.railway.app"
+          echo "Frontend QA: https://citas-frontend-qa.up.railway.app"
