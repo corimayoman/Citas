@@ -109,10 +109,12 @@ model User {
   resetPasswordToken String?
   resetPasswordExpiry DateTime?
   emailVerifyExpires DateTime?
-  consentGiven      Boolean   @default(false)
-  consentDate       DateTime?
-  consentVersion    String?
-  dataRetentionDate DateTime?
+  consentGiven           Boolean             @default(false)
+  consentDate            DateTime?
+  consentVersion         String?
+  dataRetentionDate      DateTime?
+  notificationChannel    NotificationChannel @default(EMAIL)
+  notificationPhone      String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
