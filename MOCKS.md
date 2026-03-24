@@ -50,10 +50,8 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 ```env
 # backend .env
 STRIPE_DEMO_MODE=false
-SMTP_HOST=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_USER=apikey
-SMTP_PASS=SG....
+SENDGRID_API_KEY=SG....
+MAIL_FROM=noreply@gestorcitas.app
 ```
 
 ### Conectores de organismos
