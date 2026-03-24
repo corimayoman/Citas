@@ -16,7 +16,7 @@ Debe actualizarse en el mismo PR que modifique cualquiera de los módulos listad
 |--------|--------|-------------|---------------------|--------------------------|----------------------|
 | 🟡 Mock | Búsqueda de citas | El `MockConnector` genera un slot ficticio con código `DEMO-{timestamp}` y fecha aleatoria dentro del rango preferido. No llama a ningún sistema externo. | `CONNECTOR_TYPE=mock` (hardcodeado en registry) | Implementar conector real para cada organismo (ej: RENAPER, ANSES) | — |
 | 🟡 Mock | Pagos (Stripe) | Con `STRIPE_DEMO_MODE=true`, el pago se marca como `PAID` directamente en la DB sin llamar a la API de Stripe. El booking pasa a `CONFIRMED` inmediatamente. | `STRIPE_DEMO_MODE=true` (backend) / `NEXT_PUBLIC_STRIPE_DEMO_MODE=true` (frontend) | Configurar cuenta Stripe real, setear `STRIPE_DEMO_MODE=false` y proveer `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` válidos | — |
-| ✅ Real | Notificaciones (email/SMS) | Email via SMTP (nodemailer). SMS via Twilio. El usuario elige su canal preferido en el perfil. Con `STRIPE_DEMO_MODE=true`, ambos canales guardan en DB sin envío real. | `STRIPE_DEMO_MODE` + `SMTP_*` para email, `TWILIO_*` para SMS | ✅ Implementado. Pendiente: WhatsApp | — |
+| ✅ Real | Notificaciones (email/SMS) | Email via SendGrid HTTP API. SMS via Twilio. El usuario elige su canal preferido en el perfil. Demo mode activo solo si `NOTIFICATIONS_DEMO_MODE=true` o si no hay `SENDGRID_API_KEY` configurado. | `NOTIFICATIONS_DEMO_MODE` + `SENDGRID_API_KEY` para email, `TWILIO_*` para SMS | ✅ Implementado y verificado en QA. Pendiente: WhatsApp | — |
 | 🔴 No implementado | SSO / OAuth | No existe integración con proveedores de identidad externos (Google, SAML, etc.). Solo autenticación local con email/password. | N/A | Implementar OAuth2/OIDC con el proveedor requerido | — |
 | 🟡 Mock | Validación de elegibilidad | El mock connector siempre retorna `eligible: true` sin validar requisitos reales del trámite. | Hardcodeado en `mock.connector.ts` | Implementar validación real contra el sistema del organismo | — |
 
@@ -50,10 +50,8 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 ```env
 # backend .env
 STRIPE_DEMO_MODE=false
-SMTP_HOST=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_USER=apikey
-SMTP_PASS=SG....
+SENDGRID_API_KEY=SG....
+MAIL_FROM=noreply@gestorcitas.app
 ```
 
 ### Conectores de organismos
