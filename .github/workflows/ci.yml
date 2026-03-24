@@ -19,6 +19,10 @@ jobs:
     name: Validate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
 
     services:
       postgres:
@@ -46,6 +50,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
+
       - name: TypeScript — backend
         run: npx tsc --noEmit
         working-directory: apps/backend
@@ -53,12 +63,6 @@ jobs:
       - name: TypeScript — frontend
         run: npx tsc --noEmit
         working-directory: apps/frontend
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-        working-directory: apps/backend
-        env:
-          DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
 
       - name: Push schema
         run: npx prisma db push --accept-data-loss
@@ -131,22 +135,23 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Check PR title (Conventional Commits)
-        run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          PATTERN='^(feat|fix|hotfix|chore|docs|refactor|test|ci|perf|style|release)(\([a-zA-Z0-9_\-]+\))?: .{3,}'
-          if ! echo "$TITLE" | grep -qE "$PATTERN"; then
-            echo "❌ El título del PR no sigue Conventional Commits: $TITLE"
-            exit 1
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title || '';
+            const pattern = /^(feat|fix|hotfix|chore|docs|refactor|test|ci|perf|style|release)(\([a-zA-Z0-9_\-]+\))?: .{3,}/;
+            if (!pattern.test(title)) {
+              core.setFailed(`❌ El título del PR no sigue Conventional Commits: ${title}`);
+            }
 
       - name: Check issue reference in PR body
-        run: |
-          BODY="${{ github.event.pull_request.body }}"
-          if ! echo "$BODY" | grep -qE "(Closes|Refs|Fixes) #[0-9]+"; then
-            echo "❌ El PR debe referenciar un issue con 'Closes #N', 'Refs #N' o 'Fixes #N'."
-            echo "   Agregá la referencia en el cuerpo del PR antes de hacer merge."
-            exit 1
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            if (!/\b(Closes|Refs|Fixes)\s+#[0-9]+/i.test(body)) {
+              core.setFailed("❌ El PR debe referenciar un issue con 'Closes #N', 'Refs #N' o 'Fixes #N'.\n   Agregá la referencia en el cuerpo del PR antes de hacer merge.");
+            }
 
       - name: Check MOCKS.md update when mock modules changed
         uses: actions/github-script@v7

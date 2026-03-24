@@ -15,7 +15,7 @@ Las tareas están ordenadas por dependencia: los tests van primero porque el CI 
     - Cubrir: `register` (happy path, email duplicado), `login` (credenciales válidas, inválidas, usuario inexistente), `refreshToken` (token válido, expirado), `logout`
     - Verificar invariante: no se puede registrar dos usuarios con el mismo email
     - _Requirements: 5.1, 5.5, 5.6_
-  - [ ]* 1.2 Escribir property test para auth.service
+  - [x] 1.2 Escribir property test para auth.service
     - **Property 1: Idempotencia de la suite de auth**
     - **Validates: Requirements 5.7**
   - [x] 1.3 Crear `src/modules/bookings/__tests__/booking.service.test.ts`
@@ -25,7 +25,7 @@ Las tareas están ordenadas por dependencia: los tests van primero porque el CI 
     - Verificar invariante: una cita no puede tener fecha de inicio posterior a su fecha de fin
     - Verificar invariante: un usuario no puede tener dos citas activas para el mismo trámite en el mismo horario
     - _Requirements: 5.1, 5.5, 5.6_
-  - [ ]* 1.4 Escribir property test para booking.service — máquina de estados
+  - [x] 1.4 Escribir property test para booking.service — máquina de estados
     - **Property 2: Las transiciones de estado del booking siguen la máquina de estados definida**
     - **Validates: Requirements 5.5**
   - [x] 1.5 Crear `src/modules/payments/__tests__/payment.service.test.ts`
@@ -160,7 +160,7 @@ Las tareas están ordenadas por dependencia: los tests van primero porque el CI 
     - Paso 3: revisión y submit llama a `POST /api/bookings` con los datos correctos
     - Submit exitoso redirige a `/bookings/:id`
     - _Requirements: 8.5_
-  - [ ]* 10.4 Escribir property test para BookingWizard
+  - [x] 10.4 Escribir property test para BookingWizard
     - **Property 3: El wizard nunca avanza al siguiente paso si el paso actual tiene validaciones fallidas**
     - **Validates: Requirements 8.5**
   - [x] 10.5 Crear `src/__tests__/bookings/booking-detail.test.tsx`
@@ -172,7 +172,7 @@ Las tareas están ordenadas por dependencia: los tests van primero porque el CI 
     - Estado `REQUIRES_USER_ACTION`: muestra link al portal externo
     - Estado `CANCELLED`: muestra mensaje sin acciones disponibles
     - _Requirements: 8.1, 8.3, 8.4_
-  - [ ]* 10.6 Escribir property test para BookingDetail
+  - [x] 10.6 Escribir property test para BookingDetail
     - **Property 4: El botón de pago aparece si y solo si el estado es PRE_CONFIRMED**
     - **Validates: Requirements 8.3**
   - [x] 10.7 Crear `src/__tests__/payments/payment-flow.test.tsx`
@@ -189,7 +189,7 @@ Las tareas están ordenadas por dependencia: los tests van primero porque el CI 
     - Sin sesión activa, todas las rutas del dashboard redirigen a `/login`
     - Con sesión activa, las rutas de auth (`/login`, `/register`) redirigen al dashboard
     - _Requirements: 8.9_
-  - [ ]* 10.10 Escribir property test para auth guard
+  - [x] 10.10 Escribir property test para auth guard
     - **Property 5: Ninguna ruta del dashboard es accesible sin sesión activa**
     - **Validates: Requirements 8.9**
 
