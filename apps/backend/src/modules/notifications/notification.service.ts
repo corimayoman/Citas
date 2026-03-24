@@ -13,8 +13,9 @@ export const notificationService = {
     channel?: NotificationChannel;
     metadata?: Record<string, unknown>;
   }) {
-    const isDemoMode = process.env.NOTIFICATIONS_DEMO_MODE === 'true'
-      || (process.env.STRIPE_DEMO_MODE === 'true' && !process.env.SMTP_HOST);
+    const explicitDemo = process.env.NOTIFICATIONS_DEMO_MODE;
+    const isDemoMode = explicitDemo === 'true'
+      || (explicitDemo === undefined && process.env.STRIPE_DEMO_MODE === 'true' && !process.env.SENDGRID_API_KEY);
 
     // Si no se fuerza un canal, usar la preferencia del usuario
     const channel = params.channel ?? await notificationService._getPreferredChannel(params.userId);
