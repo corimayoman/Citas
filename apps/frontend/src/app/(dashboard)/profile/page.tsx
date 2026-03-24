@@ -3,10 +3,119 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { User, Shield, CheckCircle, Plus, Trash2, AlertCircle, X } from 'lucide-react';
+import { User, Shield, CheckCircle, Plus, Trash2, AlertCircle, X, Bell, MessageSquare, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const DOCUMENT_TYPES = ['DNI', 'NIE', 'Pasaporte', 'TIE', 'Otro'];
+
+function NotificationPreferences({ user }: { user: any }) {
+  const queryClient = useQueryClient();
+  const [phone, setPhone] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  const channel: string = user?.notificationChannel ?? 'EMAIL';
+
+  const mutation = useMutation({
+    mutationFn: (data: { notificationChannel: string; notificationPhone?: string }) =>
+      api.patch('/users/me', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    },
+  });
+
+  const handleChannelChange = (newChannel: string) => {
+    mutation.mutate({
+      notificationChannel: newChannel,
+      notificationPhone: newChannel === 'SMS' ? (user?.notificationPhone ?? phone) : undefined,
+    });
+  };
+
+  const handleSavePhone = () => {
+    mutation.mutate({ notificationChannel: 'SMS', notificationPhone: phone });
+  };
+
+  return (
+    <div className="bg-white rounded-lg border p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <Bell className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">Preferencias de notificación</h3>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Elegí cómo querés recibir las notificaciones sobre tus citas y pagos.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* EMAIL */}
+        <button
+          type="button"
+          onClick={() => handleChannelChange('EMAIL')}
+          disabled={mutation.isPending}
+          className={`flex items-center gap-3 p-4 border rounded-lg text-left transition-colors ${
+            channel === 'EMAIL'
+              ? 'border-primary bg-accent'
+              : 'hover:bg-muted border-border'
+          }`}
+        >
+          <Mail className={`h-5 w-5 shrink-0 ${channel === 'EMAIL' ? 'text-primary' : 'text-muted-foreground'}`} />
+          <div>
+            <p className="text-sm font-medium">Email</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+          {channel === 'EMAIL' && <CheckCircle className="h-4 w-4 text-primary ml-auto" />}
+        </button>
+
+        {/* SMS */}
+        <button
+          type="button"
+          onClick={() => handleChannelChange('SMS')}
+          disabled={mutation.isPending}
+          className={`flex items-center gap-3 p-4 border rounded-lg text-left transition-colors ${
+            channel === 'SMS'
+              ? 'border-primary bg-accent'
+              : 'hover:bg-muted border-border'
+          }`}
+        >
+          <MessageSquare className={`h-5 w-5 shrink-0 ${channel === 'SMS' ? 'text-primary' : 'text-muted-foreground'}`} />
+          <div>
+            <p className="text-sm font-medium">SMS</p>
+            <p className="text-xs text-muted-foreground">
+              {user?.notificationPhone ?? 'Requiere teléfono'}
+            </p>
+          </div>
+          {channel === 'SMS' && <CheckCircle className="h-4 w-4 text-primary ml-auto" />}
+        </button>
+      </div>
+
+      {/* Si eligió SMS y no tiene teléfono, pedir el número */}
+      {channel === 'SMS' && !user?.notificationPhone && (
+        <div className="flex gap-2 pt-1">
+          <input
+            type="tel"
+            placeholder="+54 9 11 1234-5678"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <Button
+            size="sm"
+            onClick={handleSavePhone}
+            disabled={!phone || mutation.isPending}
+          >
+            Guardar
+          </Button>
+        </div>
+      )}
+
+      {saved && (
+        <p className="text-xs text-green-600 flex items-center gap-1">
+          <CheckCircle className="h-3.5 w-3.5" /> Preferencia guardada
+        </p>
+      )}
+    </div>
+  );
+}
 
 function NewProfileForm({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -212,6 +321,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Notification preferences */}
+      <NotificationPreferences user={user} />
 
       {/* Applicant profiles */}
       <div className="bg-white rounded-lg border p-6 space-y-4">

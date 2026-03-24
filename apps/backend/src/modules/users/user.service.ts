@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { auditService } from '../audit/audit.service';
+import { NotificationChannel } from '@prisma/client';
 
 export const userService = {
   async getProfile(userId: string) {
@@ -9,14 +10,17 @@ export const userService = {
       select: {
         id: true, email: true, role: true, isEmailVerified: true,
         mfaEnabled: true, consentGiven: true, consentDate: true,
-        createdAt: true, applicantProfiles: { where: { deletedAt: null } },
+        createdAt: true,
+        notificationChannel: true,
+        notificationPhone: true,
+        applicantProfiles: { where: { deletedAt: null } },
       },
     });
     if (!user) throw new AppError(404, 'Usuario no encontrado', 'USER_NOT_FOUND');
     return user;
   },
 
-  async updateProfile(userId: string, data: { email?: string }) {
+  async updateProfile(userId: string, data: { email?: string; notificationChannel?: NotificationChannel; notificationPhone?: string }) {
     const user = await prisma.user.update({
       where: { id: userId },
       data,

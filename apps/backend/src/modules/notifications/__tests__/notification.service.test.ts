@@ -1,75 +1,153 @@
 import { notificationService } from '../notification.service';
 import { prisma } from '../../../lib/prisma';
 import { logger } from '../../../lib/logger';
+import * as mailer from '../../../lib/mailer';
+import * as sms from '../../../lib/sms';
 
 jest.mock('../../../lib/prisma', () => ({
   prisma: {
-    notification: {
-      create: jest.fn(),
-      updateMany: jest.fn(),
-    },
+    notification: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    user: { findUnique: jest.fn() },
   },
 }));
-
 jest.mock('../../../lib/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-  },
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+jest.mock('../../../lib/mailer', () => ({ sendMail: jest.fn() }));
+jest.mock('../../../lib/sms', () => ({ sendSms: jest.fn() }));
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
+
+const sendParams = { userId: 'user-1', title: 'Título', body: 'Cuerpo' };
 
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.STRIPE_DEMO_MODE = 'true';
+  process.env.NOTIFICATIONS_DEMO_MODE = 'true';
+  delete process.env.SMTP_HOST;
+  (mockPrisma.notification.create as jest.Mock).mockResolvedValue({ id: 'notif-1', status: 'PENDING' });
+  (mockPrisma.notification.update as jest.Mock).mockResolvedValue({});
+  (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+    email: 'user@example.com',
+    notificationChannel: 'EMAIL',
+    notificationPhone: null,
+  });
 });
 
 afterEach(() => {
   delete process.env.STRIPE_DEMO_MODE;
+  delete process.env.NOTIFICATIONS_DEMO_MODE;
 });
 
-const sendParams = {
-  userId: 'user-1',
-  title: 'Título de prueba',
-  body: 'Cuerpo del mensaje',
-};
-
-describe('notificationService.send', () => {
-  it('STRIPE_DEMO_MODE=true: crea notification con status SENT y llama a logger.info', async () => {
-    (mockPrisma.notification.create as jest.Mock).mockResolvedValue({ id: 'notif-1', status: 'SENT' });
-
+describe('notificationService.send — demo mode', () => {
+  it('marca la notificación como SENT sin llamar a sendMail ni sendSms', async () => {
     await notificationService.send(sendParams);
 
-    expect(mockPrisma.notification.create as jest.Mock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'SENT' }),
-      })
+    expect(mailer.sendMail as jest.Mock).not.toHaveBeenCalled();
+    expect(sms.sendSms as jest.Mock).not.toHaveBeenCalled();
+    expect(mockPrisma.notification.update as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'SENT' }) })
     );
-    expect(logger.info as jest.Mock).toHaveBeenCalled();
   });
 
-  it('STRIPE_DEMO_MODE=true: NO llama a nodemailer', async () => {
-    (mockPrisma.notification.create as jest.Mock).mockResolvedValue({ id: 'notif-1', status: 'SENT' });
-
-    // nodemailer no está importado en el servicio, solo verificamos que no hay errores
-    // y que el flujo demo se ejecuta correctamente
-    await expect(notificationService.send(sendParams)).resolves.not.toThrow();
-    expect(logger.warn as jest.Mock).not.toHaveBeenCalled();
+  it('loguea con [DEMO] y el canal usado', async () => {
+    await notificationService.send(sendParams);
+    expect(logger.info as jest.Mock).toHaveBeenCalledWith(expect.stringContaining('[DEMO]'));
   });
+});
 
-  it('STRIPE_DEMO_MODE=false: crea notification con status PENDING y llama a logger.warn', async () => {
+describe('notificationService.send — modo real, canal EMAIL', () => {
+  beforeEach(() => {
     process.env.STRIPE_DEMO_MODE = 'false';
-    (mockPrisma.notification.create as jest.Mock).mockResolvedValue({ id: 'notif-2', status: 'PENDING' });
+    process.env.NOTIFICATIONS_DEMO_MODE = 'false';
+  });
+
+  it('llama a sendMail con el email del usuario', async () => {
+    (mailer.sendMail as jest.Mock).mockResolvedValue(undefined);
 
     await notificationService.send(sendParams);
 
-    expect(mockPrisma.notification.create as jest.Mock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'PENDING' }),
-      })
+    expect(mailer.sendMail as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'user@example.com', subject: sendParams.title })
     );
-    expect(logger.warn as jest.Mock).toHaveBeenCalled();
+  });
+
+  it('si sendMail falla, marca FAILED y no propaga el error', async () => {
+    (mailer.sendMail as jest.Mock).mockRejectedValue(new Error('SMTP error'));
+
+    await expect(notificationService.send(sendParams)).resolves.not.toThrow();
+
+    expect(mockPrisma.notification.update as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) })
+    );
+    expect(logger.error as jest.Mock).toHaveBeenCalled();
+  });
+});
+
+describe('notificationService.send — modo real, canal SMS', () => {
+  beforeEach(() => {
+    process.env.STRIPE_DEMO_MODE = 'false';
+    process.env.NOTIFICATIONS_DEMO_MODE = 'false';
+    (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+      email: 'user@example.com',
+      notificationChannel: 'SMS',
+      notificationPhone: '+5491112345678',
+    });
+  });
+
+  it('usa el canal preferido del usuario (SMS) cuando no se fuerza canal', async () => {
+    (sms.sendSms as jest.Mock).mockResolvedValue(undefined);
+
+    await notificationService.send(sendParams);
+
+    expect(sms.sendSms as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: '+5491112345678', body: sendParams.body })
+    );
+    expect(mailer.sendMail as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  it('si el usuario no tiene notificationPhone, marca FAILED y no propaga', async () => {
+    (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+      notificationChannel: 'SMS',
+      notificationPhone: null,
+    });
+
+    await expect(notificationService.send(sendParams)).resolves.not.toThrow();
+
+    expect(mockPrisma.notification.update as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) })
+    );
+  });
+
+  it('si sendSms falla, marca FAILED y no propaga el error', async () => {
+    (sms.sendSms as jest.Mock).mockRejectedValue(new Error('Twilio error'));
+
+    await expect(notificationService.send(sendParams)).resolves.not.toThrow();
+
+    expect(mockPrisma.notification.update as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) })
+    );
+  });
+});
+
+describe('notificationService.send — canal forzado override preferencia', () => {
+  beforeEach(() => {
+    process.env.STRIPE_DEMO_MODE = 'false';
+    process.env.NOTIFICATIONS_DEMO_MODE = 'false';
+  });
+
+  it('si se pasa channel=EMAIL explícito, usa email aunque la preferencia sea SMS', async () => {
+    (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue({
+      email: 'user@example.com',
+      notificationChannel: 'SMS',
+      notificationPhone: '+5491112345678',
+    });
+    (mailer.sendMail as jest.Mock).mockResolvedValue(undefined);
+
+    await notificationService.send({ ...sendParams, channel: 'EMAIL' as any });
+
+    expect(mailer.sendMail as jest.Mock).toHaveBeenCalled();
+    expect(sms.sendSms as jest.Mock).not.toHaveBeenCalled();
   });
 });
 

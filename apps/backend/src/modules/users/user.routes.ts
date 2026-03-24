@@ -13,6 +13,20 @@ router.get('/me', async (req: Request, res: Response, next: NextFunction) => {
   } catch (err) { next(err); }
 });
 
+const updateMeSchema = z.object({
+  email: z.string().email().optional(),
+  notificationChannel: z.enum(['EMAIL', 'SMS']).optional(),
+  notificationPhone: z.string().optional(),
+});
+
+router.patch('/me', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = updateMeSchema.parse(req.body);
+    const user = await userService.updateProfile(req.user!.userId, data);
+    res.json({ data: user });
+  } catch (err) { next(err); }
+});
+
 router.get('/me/profiles', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const profiles = await userService.getApplicantProfiles(req.user!.userId);
