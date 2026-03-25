@@ -31,6 +31,13 @@ function NotificationPreferences({ user }: { user: any }) {
     },
   });
 
+  // Auto-migrate SMS users to EMAIL (Twilio trial limitation)
+  useEffect(() => {
+    if (channel === 'SMS') {
+      mutation.mutate({ notificationChannel: 'EMAIL' });
+    }
+  }, [channel]);
+
   const handleChannelChange = (newChannel: string) => {
     mutation.mutate({
       notificationChannel: newChannel,

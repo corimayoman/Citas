@@ -12,6 +12,7 @@ export const notificationService = {
     body: string;
     channel?: NotificationChannel;
     metadata?: Record<string, unknown>;
+    html?: string;
   }) {
     const explicitDemo = process.env.NOTIFICATIONS_DEMO_MODE;
     const isDemoMode = explicitDemo === 'true'
@@ -46,6 +47,7 @@ export const notificationService = {
         await notificationService._sendEmail(params.userId, {
           subject: params.subject ?? params.title,
           body: params.body,
+          html: params.html,
         });
       } else if (channel === NotificationChannel.SMS) {
         await notificationService._sendSms(params.userId, params.body);
@@ -79,14 +81,14 @@ export const notificationService = {
   },
 
   /** Envía email via SMTP */
-  async _sendEmail(userId: string, params: { subject: string; body: string }) {
+  async _sendEmail(userId: string, params: { subject: string; body: string; html?: string }) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     if (!user) throw new Error(`User ${userId} not found`);
     await sendMail({
       to: user.email,
       subject: params.subject,
       text: params.body,
-      html: `<pre style="font-family:sans-serif;white-space:pre-wrap">${params.body}</pre>`,
+      html: params.html ?? `<pre style="font-family:sans-serif;white-space:pre-wrap">${params.body}</pre>`,
     });
   },
 

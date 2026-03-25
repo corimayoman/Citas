@@ -6,6 +6,8 @@ import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { AuthPayload } from '../../middleware/auth';
 import { auditService } from '../audit/audit.service';
+import { sendMail } from '../../lib/mailer';
+import { verificacionEmailHtml } from '../../lib/email-templates';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '15m') as SignOptions['expiresIn'];
@@ -28,6 +30,14 @@ export const authService = {
     });
 
     await auditService.log({ userId: user.id, action: 'CREATE', entityType: 'User', entityId: user.id });
+
+    // Enviar email de verificación automáticamente al registrarse
+    try {
+      await authService.sendVerificationEmail(user.id);
+    } catch {
+      // No bloquear el registro si el email falla
+    }
+
     return { id: user.id, email: user.email, role: user.role };
   },
 
@@ -37,6 +47,8 @@ export const authService = {
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new AppError(401, 'Credenciales inválidas', 'INVALID_CREDENTIALS');
+
+    if (!user.isEmailVerified) throw new AppError(403, 'Debés verificar tu email antes de iniciar sesión', 'EMAIL_NOT_VERIFIED');
 
     if (user.mfaEnabled) {
       if (!mfaToken) throw new AppError(200, 'MFA requerido', 'MFA_REQUIRED');
@@ -110,7 +122,25 @@ export const authService = {
       data: { emailVerifyToken: token, emailVerifyExpires: expiresAt },
     });
 
-    const isDemoMode = process.env.STRIPE_DEMO_MODE === 'true';
+    const explicitDemo = process.env.NOTIFICATIONS_DEMO_MODE;
+    const isDemoMode = explicitDemo === 'true'
+      || (explicitDemo === undefined && process.env.STRIPE_DEMO_MODE === 'true' && !process.env.SENDGRID_API_KEY);
+
+    if (!isDemoMode) {
+      const frontendUrl = process.env.FRONTEND_URL ?? 'https://citas-frontend-production-f2ef.up.railway.app';
+      const verificationUrl = `${frontendUrl}/auth/verify-email?token=${token}`;
+      try {
+        await sendMail({
+          to: user.email,
+          subject: 'Verificá tu email — Gestor de Citas Oficiales',
+          text: `Verificá tu email entrando a este enlace (expira en 24h): ${verificationUrl}`,
+          html: verificacionEmailHtml({ verificationUrl }),
+        });
+      } catch {
+        // No bloquear el registro si el email falla
+      }
+    }
+
     return { sent: true, ...(isDemoMode && { demoToken: token }) };
   },
 
