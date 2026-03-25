@@ -26,8 +26,8 @@ import complianceRoutes from './modules/compliance/compliance.routes';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Trust all proxies (Railway uses multiple proxy layers)
-app.set('trust proxy', true);
+// Trust Railway's proxy — use number to avoid express-rate-limit permissive proxy warning
+app.set('trust proxy', 'loopback, linklocal, uniquelocal');
 
 // ─── Security middleware ──────────────────────────────────────────────────────
 app.use(helmet());
