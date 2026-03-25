@@ -116,7 +116,7 @@ feature/xxx  →  (gw promote qa)  →  qa  →  (gw promote prod)  →  main
 | Servicio | Uso | Environment |
 |----------|-----|-------------|
 | SendGrid | Email de notificaciones | QA + Prod |
-| Twilio | SMS de notificaciones | QA + Prod |
+| Twilio | SMS de notificaciones (deshabilitado — cuenta trial) | — |
 | Stripe | Pagos (demo mode activo) | QA + Prod |
 
 ---
@@ -147,15 +147,14 @@ Antes de reservar un turno, necesitás crear un perfil con los datos de la perso
 5. Indicar el rango de fechas preferido y horario (mañana / tarde)
 6. Confirmar y pagar la tarifa del servicio
 7. El sistema busca un turno disponible en segundo plano
-8. Cuando encuentra uno, te notifica por email o SMS
+8. Cuando encuentra uno, te notifica por email (o SMS cuando esté habilitado)
 9. Tenés 24 horas para confirmar el turno antes de que expire
 
 ### Configurar notificaciones
 
 1. Ir a **Perfil** → "Preferencias de notificación"
-2. Elegir canal: **Email** o **SMS**
-3. Si elegís SMS, ingresar tu número de teléfono en formato internacional (ej: `+34612345678`)
-4. Guardar
+2. Elegir canal: **Email** (SMS temporalmente deshabilitado — ver [MOCKS.md](./MOCKS.md#23))
+3. Guardar
 
 ### Ver mis turnos
 

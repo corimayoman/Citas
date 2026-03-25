@@ -165,3 +165,49 @@ describe('notificationService.markRead', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Demo mode — lógica de fallback (NOTIFICATIONS_DEMO_MODE no seteado)
+// Cubre el cambio documentado en MOCKS.md: la variable correcta es
+// NOTIFICATIONS_DEMO_MODE, no STRIPE_DEMO_MODE, para controlar el modo demo.
+// ---------------------------------------------------------------------------
+
+describe('notificationService.send — demo mode fallback (sin NOTIFICATIONS_DEMO_MODE)', () => {
+  beforeEach(() => {
+    delete process.env.NOTIFICATIONS_DEMO_MODE;
+  });
+
+  it('activa demo si STRIPE_DEMO_MODE=true y no hay SENDGRID_API_KEY', async () => {
+    process.env.STRIPE_DEMO_MODE = 'true';
+    delete process.env.SENDGRID_API_KEY;
+
+    await notificationService.send(sendParams);
+
+    expect(mailer.sendMail as jest.Mock).not.toHaveBeenCalled();
+    expect(logger.info as jest.Mock).toHaveBeenCalledWith(expect.stringContaining('[DEMO]'));
+  });
+
+  it('NO activa demo si STRIPE_DEMO_MODE=true pero hay SENDGRID_API_KEY', async () => {
+    process.env.STRIPE_DEMO_MODE = 'true';
+    process.env.SENDGRID_API_KEY = 'SG.fake';
+    (mailer.sendMail as jest.Mock).mockResolvedValue(undefined);
+
+    await notificationService.send(sendParams);
+
+    expect(mailer.sendMail as jest.Mock).toHaveBeenCalled();
+    expect(logger.info as jest.Mock).not.toHaveBeenCalledWith(expect.stringContaining('[DEMO]'));
+
+    delete process.env.SENDGRID_API_KEY;
+  });
+
+  it('NOTIFICATIONS_DEMO_MODE=false fuerza modo real aunque STRIPE_DEMO_MODE=true', async () => {
+    process.env.NOTIFICATIONS_DEMO_MODE = 'false';
+    process.env.STRIPE_DEMO_MODE = 'true';
+    (mailer.sendMail as jest.Mock).mockResolvedValue(undefined);
+
+    await notificationService.send(sendParams);
+
+    expect(mailer.sendMail as jest.Mock).toHaveBeenCalled();
+    expect(logger.info as jest.Mock).not.toHaveBeenCalledWith(expect.stringContaining('[DEMO]'));
+  });
+});
