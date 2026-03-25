@@ -8,9 +8,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 const integrationBadge = {
-  OFFICIAL_API: { label: 'API Oficial', color: 'bg-green-100 text-green-700', icon: Zap },
-  AUTHORIZED_INTEGRATION: { label: 'Integración autorizada', color: 'bg-blue-100 text-blue-700', icon: Zap },
-  MANUAL_ASSISTED: { label: 'Asistencia manual', color: 'bg-gray-100 text-gray-600', icon: Hand },
+  OFFICIAL_API: { label: 'API Oficial', color: 'bg-emerald-900/30 text-emerald-400', icon: Zap },
+  AUTHORIZED_INTEGRATION: { label: 'Integración autorizada', color: 'bg-blue-900/30 text-blue-400', icon: Zap },
+  MANUAL_ASSISTED: { label: 'Asistencia manual', color: 'bg-[#1f1f35] text-[#6b6b8a]', icon: Hand },
 };
 
 export default function ProceduresPage() {
@@ -28,26 +28,26 @@ export default function ProceduresPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">Catálogo de trámites</h2>
-        <p className="text-sm text-muted-foreground">Encuentra el trámite que necesitas gestionar</p>
+        <h2 className="text-xl font-semibold text-white">Catálogo de trámites</h2>
+        <p className="text-sm text-[#6b6b8a]">Encuentra el trámite que necesitas gestionar</p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg border p-4 flex flex-wrap gap-3">
+      <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-4 flex flex-wrap gap-3">
         <div className="flex-1 min-w-48 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6b6b8a]" />
           <input
             type="text"
             placeholder="Buscar trámite..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full pl-9 pr-3 py-2 border border-[#1f1f35] bg-[#13131f] text-white rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C] placeholder:text-[#6b6b8a]"
           />
         </div>
         <select
           value={country}
           onChange={e => setCountry(e.target.value)}
-          className="border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]"
         >
           <option value="">Todos los países</option>
           <option value="ES">España</option>
@@ -57,7 +57,7 @@ export default function ProceduresPage() {
         <select
           value={category}
           onChange={e => setCategory(e.target.value)}
-          className="border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]"
         >
           <option value="">Todas las categorías</option>
           <option value="Empleo">Empleo</option>
@@ -71,14 +71,14 @@ export default function ProceduresPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg border p-4 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-gray-100 rounded w-1/2" />
+            <div key={i} className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-4 animate-pulse">
+              <div className="h-4 bg-[#1f1f35] rounded w-3/4 mb-2" />
+              <div className="h-3 bg-[#1f1f35] rounded w-1/2" />
             </div>
           ))}
         </div>
       ) : procedures.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
+        <div className="text-center py-12 text-[#6b6b8a]">
           <Search className="h-8 w-8 mx-auto mb-2 opacity-40" />
           <p>No se encontraron trámites</p>
         </div>
@@ -91,26 +91,26 @@ export default function ProceduresPage() {
             const IntIcon = integration.icon;
 
             return (
-              <div key={proc.id} className="bg-white rounded-lg border p-4 hover:shadow-sm transition-shadow flex flex-col">
+              <div key={proc.id} className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-4 hover:shadow-sm transition-shadow flex flex-col">
                 <div className="flex items-start justify-between mb-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${integration.color}`}>
                     <IntIcon className="h-3 w-3" />
                     {integration.label}
                   </span>
-                  <span className="text-xs text-muted-foreground">{proc.organization?.country}</span>
+                  <span className="text-xs text-[#6b6b8a]">{proc.organization?.country}</span>
                 </div>
 
-                <h3 className="font-medium text-sm mb-1">{proc.name}</h3>
-                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                <h3 className="font-medium text-sm mb-1 text-white">{proc.name}</h3>
+                <p className="text-xs text-[#6b6b8a] mb-1 flex items-center gap-1">
                   <Building2 className="h-3 w-3" />
                   {proc.organization?.name}
                 </p>
                 {proc.description && (
-                  <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{proc.description}</p>
+                  <p className="text-xs text-[#6b6b8a] mb-3 line-clamp-2">{proc.description}</p>
                 )}
 
-                <div className="mt-auto flex items-center justify-between pt-3 border-t">
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#1f1f35]">
+                  <div className="flex items-center gap-3 text-xs text-[#6b6b8a]">
                     {proc.estimatedTime && (
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -118,7 +118,7 @@ export default function ProceduresPage() {
                       </span>
                     )}
                     {proc.serviceFee && (
-                      <span className="font-medium text-foreground">
+                      <span className="font-medium text-white">
                         {formatCurrency(Number(proc.serviceFee), proc.currency)}
                       </span>
                     )}

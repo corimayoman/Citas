@@ -16,7 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!_hasHydrated || !user) return null;
 
   return (
-    <div className="flex h-screen bg-[#0a0a0a]">
+    <div className="flex h-screen bg-[#080810]">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />

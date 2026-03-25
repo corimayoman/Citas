@@ -46,18 +46,18 @@ function NotificationPreferences({ user }: { user: any }) {
   };
 
   return (
-    <div className="bg-white rounded-lg border p-6 space-y-4">
+    <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-6 space-y-4">
       <div className="flex items-center gap-2">
-        <Bell className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold">Preferencias de notificación</h3>
+        <Bell className="h-4 w-4 text-[#6b6b8a]" />
+        <h3 className="text-sm font-semibold text-white">Preferencias de notificación</h3>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-[#6b6b8a]">
         Elegí cómo querés recibir las notificaciones sobre tus citas y pagos.
       </p>
 
       {/* Aviso si el usuario tiene SMS configurado — migrar a EMAIL */}
       {channel === 'SMS' && (
-        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800">
+        <div className="flex items-start gap-2 bg-[#FF0A6C]/10 border border-[#FF0A6C]/30 rounded-md p-3 text-xs text-[#FF3D8A]">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
             Las notificaciones por SMS están temporalmente deshabilitadas. Tu canal fue cambiado a Email automáticamente.
@@ -71,32 +71,32 @@ function NotificationPreferences({ user }: { user: any }) {
           type="button"
           onClick={() => handleChannelChange('EMAIL')}
           disabled={mutation.isPending}
-          className={`flex items-center gap-3 p-4 border rounded-lg text-left transition-colors ${
+          className={`flex items-center gap-3 p-4 border border-[#1f1f35] rounded-lg text-left transition-colors ${
             channel === 'EMAIL' || channel === 'SMS'
-              ? 'border-primary bg-accent'
-              : 'hover:bg-muted border-border'
+              ? 'border-[#FF0A6C] bg-[#FF0A6C]/10'
+              : 'hover:bg-[#13131f]'
           }`}
         >
-          <Mail className="h-5 w-5 shrink-0 text-primary" />
+          <Mail className="h-5 w-5 shrink-0 text-[#FF0A6C]" />
           <div>
-            <p className="text-sm font-medium">Email</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <p className="text-sm font-medium text-white">Email</p>
+            <p className="text-xs text-[#6b6b8a]">{user?.email}</p>
           </div>
-          <CheckCircle className="h-4 w-4 text-primary ml-auto" />
+          <CheckCircle className="h-4 w-4 text-[#FF0A6C] ml-auto" />
         </button>
 
         {/* SMS — deshabilitado, cuenta Twilio trial */}
-        <div className="flex items-center gap-3 p-4 border rounded-lg border-border bg-muted/40 opacity-50 cursor-not-allowed">
-          <MessageSquare className="h-5 w-5 shrink-0 text-muted-foreground" />
+        <div className="flex items-center gap-3 p-4 border border-[#1f1f35] rounded-lg bg-[#13131f]/40 opacity-50 cursor-not-allowed">
+          <MessageSquare className="h-5 w-5 shrink-0 text-[#6b6b8a]" />
           <div>
-            <p className="text-sm font-medium text-muted-foreground">SMS</p>
-            <p className="text-xs text-muted-foreground">No disponible temporalmente</p>
+            <p className="text-sm font-medium text-[#6b6b8a]">SMS</p>
+            <p className="text-xs text-[#6b6b8a]">No disponible temporalmente</p>
           </div>
         </div>
       </div>
 
       {saved && (
-        <p className="text-xs text-green-600 flex items-center gap-1">
+        <p className="text-xs text-emerald-400 flex items-center gap-1">
           <CheckCircle className="h-3.5 w-3.5" /> Preferencia guardada
         </p>
       )}
@@ -141,64 +141,64 @@ function NewProfileForm({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border rounded-lg p-5 space-y-4 bg-muted/30">
+    <form onSubmit={handleSubmit} className="border border-[#1f1f35] rounded-lg p-5 space-y-4 bg-[#13131f]/30">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Nuevo perfil de solicitante</p>
-        <button type="button" onClick={onClose}><X className="h-4 w-4 text-muted-foreground" /></button>
+        <p className="text-sm font-semibold text-white">Nuevo perfil de solicitante</p>
+        <button type="button" onClick={onClose}><X className="h-4 w-4 text-[#6b6b8a]" /></button>
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md p-3 text-xs text-red-700">
+        <div className="flex items-start gap-2 bg-red-900/30 border border-red-900/50 rounded-md p-3 text-xs text-red-400">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{error}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs font-medium">Nombre <span className="text-red-500">*</span></label>
+          <label className="text-xs font-medium text-white">Nombre <span className="text-red-400">*</span></label>
           <input value={form.firstName} onChange={e => set('firstName', e.target.value)}
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            className="mt-1 w-full border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]" />
         </div>
         <div>
-          <label className="text-xs font-medium">Apellidos <span className="text-red-500">*</span></label>
+          <label className="text-xs font-medium text-white">Apellidos <span className="text-red-400">*</span></label>
           <input value={form.lastName} onChange={e => set('lastName', e.target.value)}
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            className="mt-1 w-full border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]" />
         </div>
         <div>
-          <label className="text-xs font-medium">Tipo de documento <span className="text-red-500">*</span></label>
+          <label className="text-xs font-medium text-white">Tipo de documento <span className="text-red-400">*</span></label>
           <select value={form.documentType} onChange={e => set('documentType', e.target.value)}
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+            className="mt-1 w-full border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]">
             {DOCUMENT_TYPES.map(t => <option key={t}>{t}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs font-medium">Número de documento <span className="text-red-500">*</span></label>
+          <label className="text-xs font-medium text-white">Número de documento <span className="text-red-400">*</span></label>
           <input value={form.documentNumber} onChange={e => set('documentNumber', e.target.value)}
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            className="mt-1 w-full border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]" />
         </div>
         <div>
-          <label className="text-xs font-medium">Nacionalidad <span className="text-red-500">*</span></label>
+          <label className="text-xs font-medium text-white">Nacionalidad <span className="text-red-400">*</span></label>
           <input value={form.nationality} onChange={e => set('nationality', e.target.value)}
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            className="mt-1 w-full border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]" />
         </div>
         <div>
-          <label className="text-xs font-medium">Fecha de nacimiento <span className="text-red-500">*</span></label>
+          <label className="text-xs font-medium text-white">Fecha de nacimiento <span className="text-red-400">*</span></label>
           <input type="date" value={form.birthDate} onChange={e => set('birthDate', e.target.value)}
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            className="mt-1 w-full border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]" />
         </div>
         <div>
-          <label className="text-xs font-medium">Email</label>
+          <label className="text-xs font-medium text-white">Email</label>
           <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            className="mt-1 w-full border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]" />
         </div>
         <div>
-          <label className="text-xs font-medium">Teléfono</label>
+          <label className="text-xs font-medium text-white">Teléfono</label>
           <input value={form.phone} onChange={e => set('phone', e.target.value)}
-            className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            className="mt-1 w-full border border-[#1f1f35] bg-[#13131f] text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF0A6C]" />
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm cursor-pointer">
+      <label className="flex items-center gap-2 text-sm cursor-pointer text-white">
         <input type="checkbox" checked={form.isDefault} onChange={e => set('isDefault', e.target.checked)} />
         Establecer como perfil principal
       </label>
@@ -248,9 +248,9 @@ export default function ProfilePage() {
     return (
       <div className="space-y-4">
         {[...Array(2)].map((_, i) => (
-          <div key={i} className="bg-white rounded-lg border p-6 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mb-3" />
-            <div className="h-3 bg-gray-100 rounded w-1/2" />
+          <div key={i} className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-6 animate-pulse">
+            <div className="h-4 bg-[#1f1f35] rounded w-1/4 mb-3" />
+            <div className="h-3 bg-[#1f1f35] rounded w-1/2" />
           </div>
         ))}
       </div>
@@ -259,59 +259,59 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <h2 className="text-xl font-semibold">Mi perfil</h2>
+      <h2 className="text-xl font-semibold text-white">Mi perfil</h2>
 
-      <div className="bg-white rounded-lg border p-6 space-y-4">
+      <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-            <User className="h-5 w-5 text-muted-foreground" />
+          <div className="w-10 h-10 rounded-full bg-[#1f1f35] flex items-center justify-center">
+            <User className="h-5 w-5 text-[#6b6b8a]" />
           </div>
           <div>
-            <p className="text-sm font-medium">{user?.email}</p>
-            <p className="text-xs text-muted-foreground capitalize">{user?.role?.toLowerCase().replace('_', ' ')}</p>
+            <p className="text-sm font-medium text-white">{user?.email}</p>
+            <p className="text-xs text-[#6b6b8a] capitalize">{user?.role?.toLowerCase().replace('_', ' ')}</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4 pt-2 border-t text-sm">
+        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-[#1f1f35] text-sm">
           <div>
-            <p className="text-muted-foreground text-xs">Email verificado</p>
+            <p className="text-[#6b6b8a] text-xs">Email verificado</p>
             <div className="flex items-center gap-2 mt-0.5">
-              <CheckCircle className={`h-3.5 w-3.5 ${user?.isEmailVerified ? 'text-green-500' : 'text-gray-300'}`} />
-              <span>{user?.isEmailVerified ? 'Sí' : 'No'}</span>
+              <CheckCircle className={`h-3.5 w-3.5 ${user?.isEmailVerified ? 'text-emerald-400' : 'text-[#3a3a5c]'}`} />
+              <span className="text-white">{user?.isEmailVerified ? 'Sí' : 'No'}</span>
               {!user?.isEmailVerified && (
                 <button
                   onClick={() => { setVerifyMsg(''); sendVerification.mutate(); }}
                   disabled={sendVerification.isPending}
-                  className="text-xs text-primary hover:underline disabled:opacity-50"
+                  className="text-xs text-[#FF0A6C] hover:underline disabled:opacity-50"
                 >
                   {sendVerification.isPending ? 'Verificando...' : 'Verificar'}
                 </button>
               )}
             </div>
-            {verifyMsg && <p className="text-xs text-green-600 mt-1">{verifyMsg}</p>}
+            {verifyMsg && <p className="text-xs text-emerald-400 mt-1">{verifyMsg}</p>}
           </div>
           <div>
-            <p className="text-muted-foreground text-xs">Autenticación 2FA</p>
+            <p className="text-[#6b6b8a] text-xs">Autenticación 2FA</p>
             <div className="flex items-center gap-1 mt-0.5">
-              <Shield className={`h-3.5 w-3.5 ${user?.mfaEnabled ? 'text-green-500' : 'text-gray-300'}`} />
-              <span>{user?.mfaEnabled ? 'Activa' : 'Inactiva'}</span>
+              <Shield className={`h-3.5 w-3.5 ${user?.mfaEnabled ? 'text-emerald-400' : 'text-[#3a3a5c]'}`} />
+              <span className="text-white">{user?.mfaEnabled ? 'Activa' : 'Inactiva'}</span>
             </div>
           </div>
           <div>
-            <p className="text-muted-foreground text-xs">Miembro desde</p>
-            <p>{formatDate(user?.createdAt)}</p>
+            <p className="text-[#6b6b8a] text-xs">Miembro desde</p>
+            <p className="text-white">{formatDate(user?.createdAt)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground text-xs">Consentimiento GDPR</p>
-            <p>{user?.consentGiven ? formatDate(user.consentDate) : 'No otorgado'}</p>
+            <p className="text-[#6b6b8a] text-xs">Consentimiento GDPR</p>
+            <p className="text-white">{user?.consentGiven ? formatDate(user.consentDate) : 'No otorgado'}</p>
           </div>
         </div>
       </div>
 
       <NotificationPreferences user={user} />
 
-      <div className="bg-white rounded-lg border p-6 space-y-4">
+      <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Perfiles de solicitante</h3>
+          <h3 className="text-sm font-semibold text-white">Perfiles de solicitante</h3>
           {!showForm && (
             <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
               <Plus className="h-3.5 w-3.5 mr-1" /> Nuevo perfil
@@ -322,21 +322,21 @@ export default function ProfilePage() {
         {showForm && <NewProfileForm onClose={() => setShowForm(false)} />}
 
         {user?.applicantProfiles?.length === 0 && !showForm ? (
-          <p className="text-sm text-muted-foreground">No tienes perfiles creados.</p>
+          <p className="text-sm text-[#6b6b8a]">No tienes perfiles creados.</p>
         ) : (
           <div className="space-y-2">
             {user?.applicantProfiles?.map((profile: any) => (
-              <div key={profile.id} className="flex items-center justify-between p-3 rounded-md bg-muted">
+              <div key={profile.id} className="flex items-center justify-between p-3 rounded-md bg-[#13131f]">
                 <div>
-                  <p className="text-sm font-medium">{profile.firstName} {profile.lastName}</p>
-                  <p className="text-xs text-muted-foreground">{profile.documentType} · {profile.documentNumber}</p>
+                  <p className="text-sm font-medium text-white">{profile.firstName} {profile.lastName}</p>
+                  <p className="text-xs text-[#6b6b8a]">{profile.documentType} · {profile.documentNumber}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {profile.isDefault && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Principal</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400">Principal</span>
                   )}
                   <button onClick={() => deleteProfile.mutate(profile.id)}
-                    className="text-muted-foreground hover:text-red-500 transition-colors">
+                    className="text-[#6b6b8a] hover:text-red-400 transition-colors">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>

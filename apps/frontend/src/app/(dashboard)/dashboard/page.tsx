@@ -8,14 +8,14 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Borrador', color: 'bg-gray-100 text-gray-700' },
-  PENDING_PAYMENT: { label: 'Pendiente de pago', color: 'bg-yellow-100 text-yellow-700' },
-  PAID: { label: 'Pagado', color: 'bg-blue-100 text-blue-700' },
-  IN_PROGRESS: { label: 'En gestión', color: 'bg-indigo-100 text-indigo-700' },
-  COMPLETED: { label: 'Completado', color: 'bg-green-100 text-green-700' },
-  ERROR: { label: 'Error', color: 'bg-red-100 text-red-700' },
-  REQUIRES_USER_ACTION: { label: 'Requiere acción', color: 'bg-orange-100 text-orange-700' },
-  CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-500' },
+  DRAFT: { label: 'Borrador', color: 'bg-[#1f1f35] text-[#6b6b8a]' },
+  PENDING_PAYMENT: { label: 'Pendiente de pago', color: 'bg-[#FF0A6C]/10 text-[#FF3D8A]' },
+  PAID: { label: 'Pagado', color: 'bg-blue-900/30 text-blue-400' },
+  IN_PROGRESS: { label: 'En gestión', color: 'bg-blue-900/30 text-blue-400' },
+  COMPLETED: { label: 'Completado', color: 'bg-emerald-900/30 text-emerald-400' },
+  ERROR: { label: 'Error', color: 'bg-red-900/30 text-red-400' },
+  REQUIRES_USER_ACTION: { label: 'Requiere acción', color: 'bg-[#FF0A6C]/10 text-[#FF3D8A]' },
+  CANCELLED: { label: 'Cancelado', color: 'bg-[#1f1f35] text-[#6b6b8a]' },
 };
 
 export default function DashboardPage() {
@@ -37,39 +37,39 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">Bienvenido</h2>
-        <p className="text-muted-foreground text-sm">{user?.email}</p>
+        <h2 className="text-xl font-semibold text-white">Bienvenido</h2>
+        <p className="text-[#6b6b8a] text-sm">{user?.email}</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total expedientes', value: stats.total, icon: FileText, color: 'text-blue-600' },
-          { label: 'Completados', value: stats.completed, icon: Calendar, color: 'text-green-600' },
-          { label: 'En gestión', value: stats.inProgress, icon: Clock, color: 'text-indigo-600' },
-          { label: 'Requieren acción', value: stats.pending, icon: CreditCard, color: 'text-orange-600' },
+          { label: 'Total expedientes', value: stats.total, icon: FileText, color: 'text-blue-400' },
+          { label: 'Completados', value: stats.completed, icon: Calendar, color: 'text-emerald-400' },
+          { label: 'En gestión', value: stats.inProgress, icon: Clock, color: 'text-blue-400' },
+          { label: 'Requieren acción', value: stats.pending, icon: CreditCard, color: 'text-[#FF3D8A]' },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-lg border p-4">
+          <div key={label} className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">{label}</span>
+              <span className="text-sm text-[#6b6b8a]">{label}</span>
               <Icon className={`h-4 w-4 ${color}`} />
             </div>
-            <p className="text-2xl font-semibold">{value}</p>
+            <p className="text-2xl font-semibold text-white">{value}</p>
           </div>
         ))}
       </div>
 
       {/* Recent bookings */}
-      <div className="bg-white rounded-lg border">
-        <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="font-medium">Expedientes recientes</h3>
+      <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35]">
+        <div className="p-4 border-b border-[#1f1f35] flex items-center justify-between">
+          <h3 className="font-medium text-white">Expedientes recientes</h3>
           <Link href="/bookings">
             <Button variant="ghost" size="sm">Ver todos</Button>
           </Link>
         </div>
 
         {bookings.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
+          <div className="p-8 text-center text-[#6b6b8a]">
             <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">No tienes expedientes aún</p>
             <Link href="/procedures" className="mt-3 inline-block">
@@ -77,14 +77,14 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="divide-y">
+          <div className="divide-y divide-[#1f1f35]">
             {bookings.slice(0, 5).map((booking: any) => {
-              const status = statusLabels[booking.status] || { label: booking.status, color: 'bg-gray-100 text-gray-700' };
+              const status = statusLabels[booking.status] || { label: booking.status, color: 'bg-[#1f1f35] text-[#6b6b8a]' };
               return (
-                <Link key={booking.id} href={`/bookings/${booking.id}`} className="flex items-center justify-between p-4 hover:bg-muted transition-colors">
+                <Link key={booking.id} href={`/bookings/${booking.id}`} className="flex items-center justify-between p-4 hover:bg-[#13131f] transition-colors">
                   <div>
-                    <p className="text-sm font-medium">{booking.procedure?.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm font-medium text-white">{booking.procedure?.name}</p>
+                    <p className="text-xs text-[#6b6b8a]">
                       {booking.applicantProfile?.firstName} {booking.applicantProfile?.lastName} · {formatDate(booking.createdAt)}
                     </p>
                   </div>
@@ -97,8 +97,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="bg-white rounded-lg border p-4">
-        <h3 className="font-medium mb-3">Acciones rápidas</h3>
+      <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-4">
+        <h3 className="font-medium mb-3 text-white">Acciones rápidas</h3>
         <div className="flex gap-3 flex-wrap">
           <Link href="/procedures"><Button variant="outline" size="sm">Nuevo trámite</Button></Link>
           <Link href="/profile"><Button variant="outline" size="sm">Gestionar perfiles</Button></Link>
