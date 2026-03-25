@@ -1,11 +1,28 @@
 'use client';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CheckCircle, Loader2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 export default function BookingSuccessPage({ params }: { params: { id: string } }) {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('session_id');
+  const confirmed = useRef(false);
+
+  const confirmMutation = useMutation({
+    mutationFn: (sid: string) => api.post('/payments/confirm-session', { sessionId: sid }),
+  });
+
+  useEffect(() => {
+    if (sessionId && !confirmed.current) {
+      confirmed.current = true;
+      confirmMutation.mutate(sessionId);
+    }
+  }, [sessionId]);
+
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking-success', params.id],
     queryFn: () => api.get(`/bookings/${params.id}`).then(r => r.data.data),

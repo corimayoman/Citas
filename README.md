@@ -457,6 +457,7 @@ Docs interactivos: `http://localhost:3001/api/docs`
 | `POST` | `/payments/checkout` | Bearer | Crear sesión Stripe Checkout |
 | `POST` | `/payments/demo-checkout` | Bearer | Demo — marca pago como pagado e inicia búsqueda |
 | `POST` | `/payments/webhook` | Stripe sig | Manejar eventos de Stripe |
+| `POST` | `/payments/confirm-session` | Bearer | Confirmar pago verificando la sesión directamente con Stripe (fallback si el webhook falla) |
 
 ### Notificaciones
 

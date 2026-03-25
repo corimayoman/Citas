@@ -154,4 +154,36 @@ export const paymentService = {
       orderBy: { createdAt: 'desc' },
     });
   },
+
+  // Fallback confirmation: verify session directly with Stripe when webhook didn't arrive
+  async confirmBySession(userId: string, sessionId: string) {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== 'paid') {
+      throw new AppError(402, 'El pago no fue completado', 'PAYMENT_NOT_COMPLETED');
+    }
+
+    const { bookingRequestId } = session.metadata!;
+
+    // Idempotent: if already confirmed, just return
+    const existing = await prisma.payment.findFirst({ where: { stripeSessionId: sessionId } });
+    if (existing?.status === PaymentStatus.PAID) {
+      return { alreadyConfirmed: true, bookingRequestId };
+    }
+
+    await prisma.payment.updateMany({
+      where: { stripeSessionId: sessionId },
+      data: {
+        status: PaymentStatus.PAID,
+        stripePaymentId: session.payment_intent as string,
+        paidAt: new Date(),
+      },
+    });
+
+    await auditService.log({ userId, action: 'PAYMENT', entityType: 'Payment', after: { status: 'PAID', sessionId, source: 'confirm-session-fallback' } });
+
+    await bookingService.confirmAfterPayment(bookingRequestId, userId);
+
+    return { confirmed: true, bookingRequestId };
+  },
 };

@@ -32,4 +32,14 @@ router.post('/demo-checkout', async (req: Request, res: Response, next: NextFunc
   } catch (err) { next(err); }
 });
 
+// Fallback: confirm payment by verifying session directly with Stripe
+// Used when webhook delivery fails (e.g. API version mismatch)
+router.post('/confirm-session', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId } = z.object({ sessionId: z.string() }).parse(req.body);
+    const result = await paymentService.confirmBySession(req.user!.userId, sessionId);
+    res.json({ data: result });
+  } catch (err) { next(err); }
+});
+
 export default router;
