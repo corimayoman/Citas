@@ -33,6 +33,10 @@ export default function LoginPage() {
     } catch (err: any) {
       const code = err?.response?.data?.error?.code;
       if (code === 'MFA_REQUIRED') { setNeedsMfa(true); return; }
+      if (code === 'EMAIL_NOT_VERIFIED') {
+        setError('Debés verificar tu email antes de iniciar sesión. Revisá tu bandeja de entrada.');
+        return;
+      }
       setError(err?.response?.data?.error?.message || 'Error al iniciar sesión');
     }
   };
