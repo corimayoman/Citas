@@ -26,8 +26,8 @@ import complianceRoutes from './modules/compliance/compliance.routes';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Trust Railway's proxy (required for express-rate-limit and correct IP detection)
-app.set('trust proxy', 1);
+// Trust all proxies (Railway uses multiple proxy layers)
+app.set('trust proxy', true);
 
 // ─── Security middleware ──────────────────────────────────────────────────────
 app.use(helmet());
@@ -49,7 +49,7 @@ app.use('/api/', limiter);
 // Stricter limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
 });
