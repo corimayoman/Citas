@@ -1,72 +1,299 @@
 # Gestor de Citas Oficiales
 
-> Independent assistant platform for managing appointments with public organizations in Spain and Latin America. Acts exclusively as an intermediary — not affiliated with or authorized by any government body.
+> Plataforma independiente para gestionar turnos con organismos públicos en España y Latinoamérica. Actúa exclusivamente como intermediario — no está afiliada ni autorizada por ningún organismo gubernamental.
 
 [![CI](https://github.com/corimayoman/Citas/actions/workflows/ci.yml/badge.svg)](https://github.com/corimayoman/Citas/actions/workflows/ci.yml)
 [![Deploy QA](https://github.com/corimayoman/Citas/actions/workflows/deploy-qa.yml/badge.svg)](https://github.com/corimayoman/Citas/actions/workflows/deploy-qa.yml)
 
 ---
 
-## Table of contents
+## Tabla de contenidos
 
-- [Purpose](#purpose)
-- [Tech stack](#tech-stack)
-- [Data structure](#data-structure)
-- [Status values](#status-values)
-- [API — controls catalog](#api--controls-catalog)
-- [Filters reference](#filters-reference)
-- [Dashboard charts](#dashboard-charts)
-- [Compliance engine](#compliance-engine)
-- [Connector architecture](#connector-architecture)
-- [Installation](#installation)
-- [How to update data](#how-to-update-data)
-- [Environment variables](#environment-variables)
-- [Development workflow](#development-workflow)
+- [Propósito](#propósito)
+- [Environments](#environments)
+- [Stack tecnológico](#stack-tecnológico)
+- [Arquitectura de deployment](#arquitectura-de-deployment)
+- [Guía de usuario final](#guía-de-usuario-final)
+- [Guía de administración](#guía-de-administración)
+- [Estructura de datos](#estructura-de-datos)
+- [Estados](#estados)
+- [API — catálogo de endpoints](#api--catálogo-de-endpoints)
+- [Filtros de referencia](#filtros-de-referencia)
+- [Motor de compliance](#motor-de-compliance)
+- [Arquitectura de conectores](#arquitectura-de-conectores)
+- [Instalación local](#instalación-local)
+- [Variables de entorno](#variables-de-entorno)
+- [Workflow de desarrollo](#workflow-de-desarrollo)
+- [Aviso legal](#aviso-legal)
 
 ---
 
-## Purpose
+## Propósito
 
-Gestor de Citas Oficiales centralizes the process of booking appointments at public organizations (SEPE, DGT, immigration offices, etc.). It solves three problems:
+Gestor de Citas Oficiales centraliza el proceso de reservar turnos en organismos públicos (SEPE, DGT, oficinas de extranjería, etc.). Resuelve tres problemas:
 
-1. **Fragmentation** — each organization has a different portal, process, and data format.
-2. **Availability** — slots disappear quickly and users miss them.
-3. **Complexity** — forms require specific documents and data that users often don't have ready.
+1. **Fragmentación** — cada organismo tiene un portal, proceso y formato de datos diferente.
+2. **Disponibilidad** — los turnos desaparecen rápido y los usuarios los pierden.
+3. **Complejidad** — los formularios requieren documentos y datos específicos que los usuarios no tienen listos.
 
-The platform handles three integration modes per organization:
+La plataforma soporta tres modos de integración por organismo:
 
-| Mode | Description |
+| Modo | Descripción |
 |------|-------------|
-| `OFFICIAL_API` | Fully automated via the organization's public API |
-| `AUTHORIZED_INTEGRATION` | Automated via an explicitly authorized integration |
-| `MANUAL_ASSISTED` | App prepares all data; user completes booking manually on the official portal |
+| `OFFICIAL_API` | Totalmente automatizado via la API pública del organismo |
+| `AUTHORIZED_INTEGRATION` | Automatizado via una integración explícitamente autorizada |
+| `MANUAL_ASSISTED` | La app prepara todos los datos; el usuario completa el turno manualmente en el portal oficial |
 
-Automation is only enabled when it does not violate the portal's Terms of Service, robots.txt, or any security controls. The compliance engine enforces this automatically.
+La automatización solo se activa cuando no viola los Términos de Servicio del portal, robots.txt ni ningún control de seguridad. El motor de compliance lo aplica automáticamente.
 
 ---
 
-## Tech stack
+## Environments
 
-| Layer | Technology |
-|-------|-----------|
+| Environment | Frontend | Backend | Rama Git |
+|-------------|----------|---------|----------|
+| **Production** | [citas-frontend-production-f2ef.up.railway.app](https://citas-frontend-production-f2ef.up.railway.app) | [citas-backend-production-ad65.up.railway.app](https://citas-backend-production-ad65.up.railway.app) | `main` |
+| **QA** | [citas-frontend-qa.up.railway.app](https://citas-frontend-qa.up.railway.app) | [citas-backend-qa.up.railway.app](https://citas-backend-qa.up.railway.app) | `qa` |
+
+### Credenciales de prueba (QA y Prod)
+
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| Admin | `admin@gestorcitas.app` | `Admin1234!` |
+| Usuario | `usuario@ejemplo.com` | `User1234!` |
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|------|-----------|
 | Frontend | Next.js 14, TypeScript, Tailwind CSS |
-| State management | Zustand, TanStack React Query |
+| Estado | Zustand, TanStack React Query |
 | Backend | Node.js, Express, TypeScript |
-| Database | PostgreSQL 16 |
+| Base de datos | PostgreSQL 16 |
 | ORM | Prisma 5 |
-| Auth | JWT (15 min) + Refresh tokens (30 days) + TOTP MFA |
-| Payments | Stripe Checkout + Webhooks |
-| Job queue | BullMQ + Redis |
-| Document storage | S3-compatible (AWS S3, Cloudflare R2, MinIO) |
-| API docs | Swagger / OpenAPI 3.0 at `/api/docs` |
+| Auth | JWT (15 min) + Refresh tokens (30 días) + TOTP MFA |
+| Pagos | Stripe Checkout + Webhooks (demo mode disponible) |
+| Email | SendGrid HTTP API |
+| SMS | Twilio |
+| Cola de jobs | BullMQ + Redis |
+| Almacenamiento docs | S3-compatible (AWS S3, Cloudflare R2, MinIO) |
+| API docs | Swagger / OpenAPI 3.0 en `/api/docs` |
 | CI/CD | GitHub Actions |
-| Containerization | Docker + docker-compose |
+| Hosting | Railway (QA + Production) |
 
 ---
 
-## Data structure
+## Arquitectura de deployment
 
-### Entity relationship overview
+```
+GitHub
+  ├── branch: qa   ──push──▶  Railway QA environment
+  │                              ├── Citas-Backend-QA  (citas-backend-qa.up.railway.app)
+  │                              ├── Citas-Frontend-QA (citas-frontend-qa.up.railway.app)
+  │                              ├── Postgres-QA       (postgres.railway.internal)
+  │                              └── Redis-QA          (redis.railway.internal)
+  │
+  └── branch: main ──push──▶  Railway Production environment
+                                 ├── Citas-Backend     (citas-backend-production-ad65.up.railway.app)
+                                 ├── Citas-Frontend    (citas-frontend-production-f2ef.up.railway.app)
+                                 ├── Postgres-Prod     (postgres.railway.internal)
+                                 └── Redis-Prod        (redis.railway.internal)
+```
+
+### Flujo de deploy
+
+```
+feature/xxx  →  (gw promote qa)  →  qa  →  (gw promote prod)  →  main
+                                     ↓                              ↓
+                               Railway QA                   Railway Production
+                               (auto-deploy)                (auto-deploy)
+```
+
+### Servicios externos
+
+| Servicio | Uso | Environment |
+|----------|-----|-------------|
+| SendGrid | Email de notificaciones | QA + Prod |
+| Twilio | SMS de notificaciones | QA + Prod |
+| Stripe | Pagos (demo mode activo) | QA + Prod |
+
+---
+
+## Guía de usuario final
+
+### Registrarse
+
+1. Ir a la URL del frontend → "Crear cuenta"
+2. Ingresar email y contraseña
+3. Aceptar los términos de servicio (requerido por GDPR)
+4. Confirmar el email si está habilitada la verificación
+
+### Crear un perfil de solicitante
+
+Antes de reservar un turno, necesitás crear un perfil con los datos de la persona para quien es el turno (puede ser para vos o para un familiar).
+
+1. Ir a **Perfil** → "Mis perfiles" → "Agregar perfil"
+2. Completar: nombre, apellido, tipo y número de documento, nacionalidad, fecha de nacimiento
+3. Guardar — podés tener múltiples perfiles (ej: vos + tu pareja + tus hijos)
+
+### Reservar un turno
+
+1. Ir a **Trámites** → buscar el trámite que necesitás (ej: "Renovación DNI", "Cita SEPE")
+2. Seleccionar el trámite → "Solicitar turno"
+3. Elegir el perfil de solicitante
+4. Completar el formulario del trámite
+5. Indicar el rango de fechas preferido y horario (mañana / tarde)
+6. Confirmar y pagar la tarifa del servicio
+7. El sistema busca un turno disponible en segundo plano
+8. Cuando encuentra uno, te notifica por email o SMS
+9. Tenés 24 horas para confirmar el turno antes de que expire
+
+### Configurar notificaciones
+
+1. Ir a **Perfil** → "Preferencias de notificación"
+2. Elegir canal: **Email** o **SMS**
+3. Si elegís SMS, ingresar tu número de teléfono en formato internacional (ej: `+34612345678`)
+4. Guardar
+
+### Ver mis turnos
+
+Ir a **Mis turnos** para ver el estado de todas tus reservas:
+
+| Estado | Qué significa |
+|--------|---------------|
+| Borrador | Formulario guardado, pendiente de pago |
+| Buscando | Pagado, el sistema está buscando un turno |
+| Pre-confirmado | Turno encontrado, confirmá antes de que expire |
+| Confirmado | Turno reservado, revisá los detalles |
+| Completado | Turno realizado |
+| Cancelado | Turno cancelado |
+
+### Cancelar un turno
+
+Podés cancelar un turno desde **Mis turnos** → seleccionar el turno → "Cancelar". Los reembolsos se procesan según la política de la plataforma.
+
+---
+
+## Guía de administración
+
+### Acceso al panel de administración
+
+Iniciá sesión con una cuenta de rol `ADMIN` u `OPERATOR`. El panel de admin está disponible en `/admin` del frontend.
+
+### Gestión de usuarios
+
+**Ver todos los usuarios:**
+```bash
+GET /api/admin/users
+Authorization: Bearer <admin-token>
+```
+
+**Roles disponibles:**
+
+| Rol | Permisos |
+|-----|----------|
+| `USER` | Reservar turnos, ver sus propios datos |
+| `OPERATOR` | Ver todos los bookings, gestionar procedimientos |
+| `ADMIN` | Acceso completo, gestión de usuarios y conectores |
+| `COMPLIANCE_OFFICER` | Revisar y aprobar conectores, ver audit logs |
+
+### Gestión de organizaciones y procedimientos
+
+**Agregar una organización:**
+```bash
+curl -X POST /api/organizations \
+  -H "Authorization: Bearer <admin-token>" \
+  -d '{"name":"SEPE","slug":"sepe","country":"ES","website":"https://www.sepe.es"}'
+```
+
+**Agregar un procedimiento:**
+```bash
+curl -X POST /api/procedures \
+  -H "Authorization: Bearer <admin-token>" \
+  -d '{
+    "organizationId": "<org-id>",
+    "name": "Cita previa desempleo",
+    "slug": "cita-desempleo",
+    "category": "Empleo",
+    "serviceFee": 14.99,
+    "currency": "EUR",
+    "formSchema": {
+      "fields": [
+        { "name": "nif", "label": "NIF", "type": "text", "required": true }
+      ]
+    }
+  }'
+```
+
+### Gestión de conectores
+
+Los conectores son los adaptadores de integración con cada organismo. Antes de activar un conector, debe pasar una revisión de compliance.
+
+**Ver conectores registrados:**
+```bash
+GET /api/connectors/registry
+Authorization: Bearer <admin-token>
+```
+
+**Activar/desactivar un conector:**
+```bash
+POST /api/connectors/<id>/toggle
+Authorization: Bearer <admin-token>
+```
+
+**Correr revisión de compliance:**
+```bash
+POST /api/compliance/review
+Authorization: Bearer <compliance-officer-token>
+{
+  "connectorId": "<id>",
+  "termsChecked": true,
+  "robotsTxtChecked": true,
+  "apiDocsChecked": true,
+  "hasOfficialApi": true,
+  "requiresCaptchaBypass": false,
+  "requiresAntiBotEvasion": false,
+  "requiresRateLimitEvasion": false,
+  "requiresAuthBypass": false,
+  "legalBasis": "API pública oficial"
+}
+```
+
+### Dashboard de métricas
+
+`GET /api/admin/stats` devuelve:
+- Total de usuarios registrados
+- Distribución de bookings por estado
+- Revenue total (pagos confirmados)
+- Procedimientos activos
+
+### Audit log
+
+Cada acción significativa queda registrada de forma inmutable:
+
+```bash
+GET /api/admin/audit-logs?action=PAYMENT&page=1&limit=50
+Authorization: Bearer <admin-token>
+```
+
+Acciones auditadas: `CREATE` `READ` `UPDATE` `DELETE` `LOGIN` `LOGOUT` `PAYMENT` `BOOKING_ATTEMPT` `COMPLIANCE_CHECK` `CONNECTOR_TOGGLE` `DATA_EXPORT` `DATA_DELETE`
+
+### Notificaciones
+
+Las notificaciones se envían automáticamente en estos eventos:
+- Turno encontrado (canal preferido del usuario)
+- Pago confirmado
+- Turno confirmado con detalles
+
+Ver estado de integraciones en [MOCKS.md](./MOCKS.md).
+
+---
+
+## Estructura de datos
+
+### Diagrama de entidades
 
 ```
 User
@@ -90,427 +317,211 @@ Organization
       └── ComplianceReview[]
 ```
 
-### Entities
+### Entidades principales
 
 #### `User`
-Authenticated account. One user can manage multiple applicant profiles (e.g. family members).
+Cuenta autenticada. Un usuario puede gestionar múltiples perfiles de solicitante.
 
-| Field | Type | Description |
+| Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `id` | UUID | Primary key |
-| `email` | String | Unique login email |
+| `id` | UUID | Clave primaria |
+| `email` | String | Email único de login |
 | `role` | Enum | `USER` `OPERATOR` `ADMIN` `COMPLIANCE_OFFICER` |
-| `isActive` | Boolean | Account enabled flag |
-| `mfaEnabled` | Boolean | TOTP two-factor active |
-| `consentGiven` | Boolean | GDPR consent recorded |
-| `consentVersion` | String | Version of accepted terms |
-| `dataRetentionDate` | DateTime | Scheduled GDPR deletion date |
-| `deletedAt` | DateTime | Soft delete timestamp |
+| `notificationChannel` | Enum | `EMAIL` `SMS` `WHATSAPP` (default `EMAIL`) |
+| `notificationPhone` | String | Teléfono para SMS (formato E.164) |
+| `mfaEnabled` | Boolean | TOTP activo |
+| `consentGiven` | Boolean | Consentimiento GDPR registrado |
+| `dataRetentionDate` | DateTime | Fecha de eliminación GDPR programada |
 
 #### `ApplicantProfile`
-Personal data of the person the appointment is for. Reusable across multiple bookings.
+Datos personales del solicitante. Reutilizable en múltiples bookings.
 
-| Field | Type | Description |
+| Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `id` | UUID | Primary key |
-| `userId` | UUID | Owner account |
-| `firstName` / `lastName` | String | Full name |
 | `documentType` | String | `DNI` `NIE` `Passport` etc. |
-| `documentNumber` | String | Encrypted at rest |
-| `nationality` | String | ISO country code |
-| `birthDate` | DateTime | Date of birth |
-| `address` | JSON | `{ street, city, province, postalCode, country }` |
-| `isDefault` | Boolean | Default profile for new bookings |
-
-#### `Organization`
-A public body or government agency.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key |
-| `slug` | String | Unique URL-safe identifier |
-| `country` | String | ISO country code |
-| `region` | String | Optional region/province |
-| `isActive` | Boolean | Visible in catalog |
-
-#### `Procedure`
-A specific type of appointment or administrative process offered by an organization.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key |
-| `organizationId` | UUID | Parent organization |
-| `connectorId` | UUID | Integration connector (nullable) |
-| `category` | String | e.g. `Empleo` `Tráfico` `Extranjería` |
-| `formSchema` | JSON | Dynamic form field definitions |
-| `eligibilityRules` | JSON | Rules engine configuration |
-| `serviceFee` | Decimal | Platform fee in `currency` |
-| `slaHours` | Int | Service level commitment in hours |
-| `legalBasis` | String | Applicable law or regulation |
-
-#### `Connector`
-Integration adapter for a specific organization portal.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `integrationType` | Enum | `OFFICIAL_API` `AUTHORIZED_INTEGRATION` `MANUAL_ASSISTED` |
-| `status` | Enum | `ACTIVE` `INACTIVE` `PENDING_REVIEW` `SUSPENDED` |
-| `canCheckAvailability` | Boolean | Can query available slots |
-| `canBook` | Boolean | Can create appointments automatically |
-| `canCancel` | Boolean | Can cancel appointments |
-| `canReschedule` | Boolean | Can reschedule appointments |
-| `complianceLevel` | Enum | `LOW` `MEDIUM` `HIGH` `CRITICAL` |
-| `rateLimit` | Int | Max requests per minute |
-| `lastComplianceCheck` | DateTime | Last compliance review date |
+| `documentNumber` | String | Encriptado en reposo (AES-256-GCM) |
+| `isDefault` | Boolean | Perfil por defecto para nuevos bookings |
 
 #### `BookingRequest`
-A user's request to book an appointment for a specific procedure.
+Solicitud de turno de un usuario para un trámite específico.
 
-| Field | Type | Description |
+| Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `status` | Enum | See [Booking status values](#booking-status) |
-| `formData` | JSON | AES-256-GCM encrypted user-submitted form data |
-| `validationResult` | JSON | Result of eligibility/completeness check |
-| `preferredDateFrom` | DateTime | User's preferred search start date |
-| `preferredDateTo` | DateTime | User's preferred search end date |
-| `preferredTimeSlot` | String | `morning` (before 14:00) or `afternoon` (after 14:00) |
-| `paymentDeadline` | DateTime | 24h before the found appointment — confirm by this date |
-| `selectedDate` | DateTime | Appointment date found by the background search |
-| `externalRef` | String | Confirmation code from the official portal |
-| `completedAt` | DateTime | Timestamp of successful completion |
-
-#### `Appointment`
-Confirmed appointment details, created after a successful booking.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `confirmationCode` | String | Official portal reference number |
-| `appointmentDate` | DateTime | Date of the appointment |
-| `appointmentTime` | String | Time in `HH:mm` format |
-| `location` | String | Office address |
-| `instructions` | String | What to bring, arrival notes |
-| `receiptData` | JSON | Full receipt snapshot from the portal |
-
-#### `Payment`
-Stripe payment record for the platform service fee.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `status` | Enum | See [Payment status values](#payment-status) |
-| `amount` | Decimal | Amount charged |
-| `currency` | String | ISO currency code (default `EUR`) |
-| `stripePaymentId` | String | Stripe `pi_xxx` reference |
-| `stripeSessionId` | String | Stripe Checkout session ID |
-| `refundAmount` | Decimal | Amount refunded (partial or full) |
-
-#### `AuditLog`
-Immutable append-only record of every significant action. Never updated, only inserted.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `action` | Enum | See [Audit actions](#audit-actions) |
-| `entityType` | String | e.g. `User` `BookingRequest` `Connector` |
-| `entityId` | String | ID of the affected record |
-| `before` / `after` | JSON | State snapshot before and after the change |
-| `ipAddress` | String | Client IP |
-
-#### `DocumentFile`
-Uploaded supporting document linked to a profile or booking.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `storageKey` | String | S3 object key |
-| `status` | Enum | `PENDING` `VALIDATED` `REJECTED` `EXPIRED` |
-| `expiresAt` | DateTime | Document expiry date (e.g. passport) |
+| `status` | Enum | Ver [Estados de booking](#estados-de-booking) |
+| `formData` | JSON | Datos del formulario encriptados (AES-256-GCM) |
+| `preferredDateFrom` | DateTime | Inicio del rango de búsqueda preferido |
+| `preferredDateTo` | DateTime | Fin del rango de búsqueda preferido |
+| `preferredTimeSlot` | String | `morning` (antes 14:00) o `afternoon` (después 14:00) |
+| `paymentDeadline` | DateTime | 24h antes del turno encontrado — confirmar antes de esta fecha |
+| `externalRef` | String | Código de confirmación del portal oficial |
 
 ---
 
-## Status values
+## Estados
 
-### Booking status
+### Estados de booking
 
 ```
-DRAFT → (pay) → SEARCHING → PRE_CONFIRMED → (confirm) → CONFIRMED
-                                           ↘ EXPIRED (deadline passed without confirm)
-         (any) → CANCELLED
-         (any) → ERROR
-         (any) → REFUNDED
+DRAFT → (pagar) → SEARCHING → PRE_CONFIRMED → (confirmar) → CONFIRMED
+                                             ↘ EXPIRED (deadline sin confirmar)
+         (cualquier estado) → CANCELLED
+         (cualquier estado) → ERROR
+         (cualquier estado) → REFUNDED
 ```
 
-| Value | Meaning | Next action |
-|-------|---------|-------------|
-| `DRAFT` | Form saved, not yet paid | Pay to start search |
-| `SEARCHING` | Payment received, background job looking for a slot | Wait for notification |
-| `PRE_CONFIRMED` | Slot found, waiting for user confirmation | Confirm before payment deadline |
-| `CONFIRMED` | User confirmed, full appointment details sent | View appointment details |
-| `IN_PROGRESS` | Connector is attempting the booking (legacy flow) | Wait |
-| `COMPLETED` | Appointment confirmed via legacy execute flow | View appointment details |
-| `ERROR` | Booking attempt failed or search exhausted | Contact support or retry |
-| `REQUIRES_USER_ACTION` | Manual-assisted mode — user must act | Follow portal instructions |
-| `CANCELLED` | Booking cancelled by user or system | — |
-| `REFUNDED` | Payment refunded | — |
-| `EXPIRED` | Payment deadline passed without confirmation | — |
+| Valor | Significado | Próxima acción |
+|-------|-------------|----------------|
+| `DRAFT` | Formulario guardado, sin pagar | Pagar para iniciar búsqueda |
+| `SEARCHING` | Pago recibido, job buscando turno | Esperar notificación |
+| `PRE_CONFIRMED` | Turno encontrado, esperando confirmación | Confirmar antes del deadline |
+| `CONFIRMED` | Confirmado, detalles del turno enviados | Ver detalles |
+| `COMPLETED` | Turno realizado | — |
+| `ERROR` | Búsqueda agotada o error | Contactar soporte |
+| `REQUIRES_USER_ACTION` | Modo asistido — el usuario debe actuar | Seguir instrucciones del portal |
+| `CANCELLED` | Cancelado | — |
+| `REFUNDED` | Reembolso procesado | — |
+| `EXPIRED` | Deadline de confirmación vencido | — |
 
-### Payment status
+### Estados de pago
 
-| Value | Meaning |
-|-------|---------|
-| `PENDING` | Checkout session created, not yet paid |
-| `PAID` | Stripe confirmed payment |
-| `FAILED` | Payment declined or expired |
-| `REFUNDED` | Full refund issued |
-| `PARTIALLY_REFUNDED` | Partial refund issued |
-
-### Connector status
-
-| Value | Meaning |
-|-------|---------|
-| `ACTIVE` | Operational, can process bookings |
-| `INACTIVE` | Disabled by admin |
-| `PENDING_REVIEW` | Awaiting compliance review |
-| `SUSPENDED` | Suspended due to compliance issue |
-
-### Document status
-
-| Value | Meaning |
-|-------|---------|
-| `PENDING` | Uploaded, not yet reviewed |
-| `VALIDATED` | Accepted |
-| `REJECTED` | Rejected — resubmission required |
-| `EXPIRED` | Document past its expiry date |
-
-### Audit actions
-
-`CREATE` `READ` `UPDATE` `DELETE` `LOGIN` `LOGOUT` `PAYMENT` `BOOKING_ATTEMPT` `COMPLIANCE_CHECK` `CONNECTOR_TOGGLE` `DATA_EXPORT` `DATA_DELETE`
+| Valor | Significado |
+|-------|-------------|
+| `PENDING` | Sesión de checkout creada, sin pagar |
+| `PAID` | Pago confirmado por Stripe |
+| `FAILED` | Pago rechazado o expirado |
+| `REFUNDED` | Reembolso completo |
+| `PARTIALLY_REFUNDED` | Reembolso parcial |
 
 ---
 
-## API — controls catalog
+## API — catálogo de endpoints
 
-Base URL: `http://localhost:3001/api`  
-Interactive docs: `http://localhost:3001/api/docs`
+Base URL local: `http://localhost:3001/api`
+Docs interactivos: `http://localhost:3001/api/docs`
 
-### Authentication
+### Autenticación
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `POST` | `/auth/register` | — | Register new user with GDPR consent |
-| `POST` | `/auth/login` | — | Login, returns `accessToken` + `refreshToken` |
-| `POST` | `/auth/refresh` | — | Rotate access token using refresh token |
-| `POST` | `/auth/logout` | Bearer | Revoke refresh token |
-| `POST` | `/auth/mfa/setup` | Bearer | Generate TOTP secret and QR code |
-| `POST` | `/auth/mfa/enable` | Bearer | Activate MFA after verifying first code |
+| `POST` | `/auth/register` | — | Registrar usuario con consentimiento GDPR |
+| `POST` | `/auth/login` | — | Login, devuelve `accessToken` + `refreshToken` |
+| `POST` | `/auth/refresh` | — | Rotar access token con refresh token |
+| `POST` | `/auth/logout` | Bearer | Revocar refresh token |
+| `POST` | `/auth/mfa/setup` | Bearer | Generar secreto TOTP y QR |
+| `POST` | `/auth/mfa/enable` | Bearer | Activar MFA tras verificar primer código |
 
-### Users & profiles
+### Usuarios y perfiles
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `GET` | `/users/me` | Bearer | Get own account and profiles |
-| `GET` | `/users/me/profiles` | Bearer | List applicant profiles |
-| `POST` | `/users/me/profiles` | Bearer | Create applicant profile |
-| `DELETE` | `/users/me/profiles/:id` | Bearer | Soft-delete profile |
-| `POST` | `/users/me/gdpr/delete-request` | Bearer | Schedule account deletion (GDPR) |
+| `GET` | `/users/me` | Bearer | Ver cuenta propia |
+| `PATCH` | `/users/me` | Bearer | Actualizar canal de notificación y teléfono |
+| `GET` | `/users/me/profiles` | Bearer | Listar perfiles de solicitante |
+| `POST` | `/users/me/profiles` | Bearer | Crear perfil de solicitante |
+| `DELETE` | `/users/me/profiles/:id` | Bearer | Eliminar perfil (soft delete) |
+| `POST` | `/users/me/gdpr/delete-request` | Bearer | Solicitar eliminación de cuenta (GDPR) |
 
-### Organizations
+### Organizaciones
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `GET` | `/organizations` | — | List organizations (filterable) |
-| `GET` | `/organizations/:id` | — | Organization detail with procedures |
-| `POST` | `/organizations` | Admin | Create organization |
-| `PUT` | `/organizations/:id` | Admin | Update organization |
+| `GET` | `/organizations` | — | Listar organizaciones (filtrable) |
+| `GET` | `/organizations/:id` | — | Detalle con procedimientos |
+| `POST` | `/organizations` | Admin | Crear organización |
+| `PUT` | `/organizations/:id` | Admin | Actualizar organización |
 
-### Procedures
+### Procedimientos
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `GET` | `/procedures` | — | Paginated procedure catalog |
-| `GET` | `/procedures/:id` | — | Procedure detail with requirements |
-| `POST` | `/procedures` | Admin/Operator | Create procedure |
-| `PUT` | `/procedures/:id` | Admin/Operator | Update procedure |
+| `GET` | `/procedures` | — | Catálogo paginado |
+| `GET` | `/procedures/:id` | — | Detalle con requisitos |
+| `POST` | `/procedures` | Admin/Operator | Crear procedimiento |
+| `PUT` | `/procedures/:id` | Admin/Operator | Actualizar procedimiento |
 
 ### Bookings
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `GET` | `/bookings` | Bearer | List own bookings (paginated) |
-| `POST` | `/bookings` | Bearer | Create booking draft (accepts `preferredDateFrom`, `preferredDateTo`, `preferredTimeSlot`) |
-| `GET` | `/bookings/:id` | Bearer | Booking detail with attempts and appointment |
-| `POST` | `/bookings/:id/validate` | Bearer | Run eligibility and completeness check |
-| `POST` | `/bookings/:id/execute` | Bearer | Execute booking (legacy — automated or assisted) |
-| `POST` | `/bookings/:id/confirm-payment` | Bearer | Confirm slot after `PRE_CONFIRMED` — moves to `CONFIRMED` and sends appointment details |
+| `GET` | `/bookings` | Bearer | Listar propios (paginado) |
+| `POST` | `/bookings` | Bearer | Crear booking draft |
+| `GET` | `/bookings/:id` | Bearer | Detalle con intentos y turno |
+| `POST` | `/bookings/:id/validate` | Bearer | Verificar elegibilidad |
+| `POST` | `/bookings/:id/confirm-payment` | Bearer | Confirmar turno tras `PRE_CONFIRMED` |
 
-### Payments
+### Pagos
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `GET` | `/payments` | Bearer | List own payments with invoices |
-| `POST` | `/payments/checkout` | Bearer | Create Stripe Checkout session |
-| `POST` | `/payments/demo-checkout` | Bearer | Demo mode — marks payment as paid and starts background search |
-| `POST` | `/payments/webhook` | Stripe sig | Handle Stripe webhook events |
+| `GET` | `/payments` | Bearer | Listar propios con facturas |
+| `POST` | `/payments/checkout` | Bearer | Crear sesión Stripe Checkout |
+| `POST` | `/payments/demo-checkout` | Bearer | Demo — marca pago como pagado e inicia búsqueda |
+| `POST` | `/payments/webhook` | Stripe sig | Manejar eventos de Stripe |
 
-### Notifications
+### Notificaciones
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `GET` | `/notifications` | Bearer | List own notifications (last 50) |
-| `POST` | `/notifications/:id/read` | Bearer | Mark a notification as read |
-| `POST` | `/notifications/read-all` | Bearer | Mark all notifications as read |
+| `GET` | `/notifications` | Bearer | Listar propias (últimas 50) |
+| `POST` | `/notifications/:id/read` | Bearer | Marcar como leída |
+| `POST` | `/notifications/read-all` | Bearer | Marcar todas como leídas |
 
-### Connectors
+### Conectores
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `GET` | `/connectors` | — | List all connectors with capabilities |
-| `GET` | `/connectors/registry` | Admin/Operator | List registered adapter instances |
-| `GET` | `/connectors/:id/availability` | Bearer | Query available time slots |
-| `POST` | `/connectors/:id/toggle` | Admin | Enable or disable a connector |
+| `GET` | `/connectors` | — | Listar conectores con capacidades |
+| `GET` | `/connectors/registry` | Admin/Operator | Instancias registradas |
+| `GET` | `/connectors/:id/availability` | Bearer | Consultar slots disponibles |
+| `POST` | `/connectors/:id/toggle` | Admin | Activar/desactivar conector |
 
 ### Compliance
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `POST` | `/compliance/evaluate` | Admin/Compliance | Dry-run compliance check (no save) |
-| `POST` | `/compliance/review` | Admin/Compliance | Full compliance review with persistence |
-| `GET` | `/compliance/connector/:id` | Admin/Compliance/Operator | Review history for a connector |
+| `POST` | `/compliance/evaluate` | Admin/Compliance | Dry-run sin persistir |
+| `POST` | `/compliance/review` | Admin/Compliance | Revisión completa con persistencia |
+| `GET` | `/compliance/connector/:id` | Admin/Compliance/Operator | Historial de revisiones |
 
 ### Admin
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
-| `GET` | `/admin/stats` | Admin/Operator | Dashboard KPIs |
-| `GET` | `/admin/bookings` | Admin/Operator | All bookings across all users |
-| `GET` | `/admin/users` | Admin | All user accounts |
-| `GET` | `/admin/audit-logs` | Admin/Compliance | Immutable audit trail |
+| `GET` | `/admin/stats` | Admin/Operator | KPIs del dashboard |
+| `GET` | `/admin/bookings` | Admin/Operator | Todos los bookings |
+| `GET` | `/admin/users` | Admin | Todas las cuentas |
+| `GET` | `/admin/audit-logs` | Admin/Compliance | Audit trail inmutable |
 
 ### Health
 
-| Method | Endpoint | Auth | Description |
+| Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
 | `GET` | `/health` | — | Liveness check |
 
 ---
 
-## Filters reference
+## Motor de compliance
 
-### `GET /procedures`
-
-| Parameter | Type | Example | Description |
-|-----------|------|---------|-------------|
-| `search` | string | `desempleo` | Name contains (case-insensitive) |
-| `country` | string | `ES` | ISO country code |
-| `organizationId` | UUID | `abc-123` | Filter by organization |
-| `category` | string | `Empleo` | Exact category match |
-| `page` | number | `1` | Page number (default `1`) |
-| `limit` | number | `20` | Results per page (default `20`) |
-
-### `GET /organizations`
-
-| Parameter | Type | Example | Description |
-|-----------|------|---------|-------------|
-| `country` | string | `ES` | ISO country code |
-| `region` | string | `Madrid` | Region/province |
-| `search` | string | `SEPE` | Name contains (case-insensitive) |
-
-### `GET /bookings`
-
-| Parameter | Type | Example | Description |
-|-----------|------|---------|-------------|
-| `page` | number | `1` | Page number |
-| `limit` | number | `20` | Results per page |
-
-### `GET /admin/bookings`
-
-| Parameter | Type | Example | Description |
-|-----------|------|---------|-------------|
-| `status` | BookingStatus | `COMPLETED` | Filter by booking status |
-| `page` | number | `1` | Page number |
-| `limit` | number | `20` | Results per page |
-
-### `GET /admin/audit-logs`
-
-| Parameter | Type | Example | Description |
-|-----------|------|---------|-------------|
-| `userId` | UUID | `abc-123` | Filter by user |
-| `entityType` | string | `BookingRequest` | Filter by entity type |
-| `action` | AuditAction | `PAYMENT` | Filter by action type |
-| `page` | number | `1` | Page number |
-| `limit` | number | `50` | Results per page (default `50`) |
-
-### `GET /connectors/:id/availability`
-
-| Parameter | Type | Example | Description |
-|-----------|------|---------|-------------|
-| `procedureId` | UUID | `abc-123` | Required — procedure to check |
-| `fromDate` | ISO date | `2026-04-01` | Start of date range |
-| `toDate` | ISO date | `2026-04-15` | End of date range |
-
----
-
-## Dashboard charts
-
-The admin dashboard (`GET /admin/stats`) returns data that drives the following visualizations:
-
-### Booking status distribution (donut / bar chart)
-
-Source: `bookingRequest.groupBy({ by: ['status'], _count: true })`
+Cada conector debe pasar una revisión de compliance antes de operar en modo automatizado. El motor aplica reglas no negociables:
 
 ```
-DRAFT                ██░░░░░░░░  12%
-PENDING_PAYMENT      ███░░░░░░░  18%
-PAID                 ██░░░░░░░░  10%
-IN_PROGRESS          █░░░░░░░░░   5%
-COMPLETED            ████████░░  42%
-REQUIRES_USER_ACTION ██░░░░░░░░   8%
-ERROR                █░░░░░░░░░   3%
-CANCELLED            ░░░░░░░░░░   2%
-```
-
-### Revenue over time (line chart)
-
-Source: `payment.aggregate({ _sum: { amount }, where: { status: 'PAID' } })`
-
-Group by `paidAt` truncated to day/week/month for time-series display.
-
-### KPI cards
-
-| Metric | Source |
-|--------|--------|
-| Total users | `user.count` |
-| Active procedures | `procedure.count({ isActive: true })` |
-| Total revenue | `payment._sum.amount` where `status = PAID` |
-| Bookings by status | `bookingRequest.groupBy` |
-
-### Connector health (status table)
-
-Source: `connector.findMany` with `status`, `lastComplianceCheck`, `complianceLevel`
-
-Highlights connectors with `status = SUSPENDED` or `complianceLevel = CRITICAL`.
-
----
-
-## Compliance engine
-
-Every connector must pass a compliance review before it can operate in automated mode. The engine applies non-negotiable rules:
-
-```
-requiresCaptchaBypass   = true  →  MANUAL_ASSISTED (CRITICAL) — cannot activate
-requiresAntiBotEvasion  = true  →  MANUAL_ASSISTED (CRITICAL) — cannot activate
-requiresRateLimitEvasion = true →  MANUAL_ASSISTED (CRITICAL) — cannot activate
-requiresAuthBypass      = true  →  MANUAL_ASSISTED (CRITICAL) — cannot activate
+requiresCaptchaBypass    = true  →  MANUAL_ASSISTED (CRITICAL) — no se puede activar
+requiresAntiBotEvasion   = true  →  MANUAL_ASSISTED (CRITICAL) — no se puede activar
+requiresRateLimitEvasion = true  →  MANUAL_ASSISTED (CRITICAL) — no se puede activar
+requiresAuthBypass       = true  →  MANUAL_ASSISTED (CRITICAL) — no se puede activar
 
 hasOfficialApi + apiDocsChecked + termsChecked = true  →  OFFICIAL_API (LOW)
 hasAuthorizedIntegration + termsChecked = true         →  AUTHORIZED_INTEGRATION (MEDIUM)
 otherwise                                              →  MANUAL_ASSISTED (HIGH)
 ```
 
-Reviews are stored in `ComplianceReview` and expire after 1 year. Connectors must be re-reviewed annually.
+Las revisiones se almacenan en `ComplianceReview` y expiran al año. Los conectores deben re-revisarse anualmente.
 
 ---
 
-## Connector architecture
+## Arquitectura de conectores
 
-Each connector implements the `IConnector` interface:
+Cada conector implementa la interfaz `IConnector`:
 
 ```typescript
 interface IConnector {
@@ -523,48 +534,48 @@ interface IConnector {
 }
 ```
 
-To add a new connector:
+Para agregar un nuevo conector:
 
-1. Create `apps/backend/src/modules/connectors/adapters/<name>.connector.ts`
-2. Implement `IConnector`
-3. Run `POST /compliance/review` — connector only activates if compliance passes
-4. Register in `connector.registry.ts`
+1. Crear `apps/backend/src/modules/connectors/adapters/<nombre>.connector.ts`
+2. Implementar `IConnector`
+3. Correr `POST /compliance/review` — el conector solo se activa si pasa compliance
+4. Registrar en `connector.registry.ts`
 
-A mock connector (`mock-connector-001`) is included for development and testing.
+Un conector mock (`mock-connector-001`) está incluido para desarrollo y testing.
 
 ---
 
-## Installation
+## Instalación local
 
-### Prerequisites
+### Prerequisitos
 
 - Node.js >= 20
 - PostgreSQL >= 14
 - Redis >= 7
 
-### Steps
+### Pasos
 
 ```bash
-# 1. Install dependencies
+# 1. Instalar dependencias
 npm install
 
-# 2. Configure environment
+# 2. Configurar entorno
 cp apps/backend/.env.example apps/backend/.env
-# Edit .env — see Environment variables section
+# Editar .env — ver sección Variables de entorno
 
-# 3. Generate encryption key
+# 3. Generar clave de encriptación
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-# 4. Run database migrations
-npm run db:migrate
+# 4. Aplicar schema de base de datos
+npm run db:push --workspace=apps/backend
 
-# 5. Load seed data
-npm run db:seed
+# 5. Cargar datos de seed
+npm run db:seed --workspace=apps/backend
 
-# 6. Start backend (port 3001)
+# 6. Iniciar backend (puerto 3001)
 npm run dev --workspace=apps/backend
 
-# 7. Start frontend (port 3000) — separate terminal
+# 7. Iniciar frontend (puerto 3000) — terminal separada
 npm run dev --workspace=apps/frontend
 ```
 
@@ -574,207 +585,62 @@ npm run dev --workspace=apps/frontend
 docker-compose up -d
 ```
 
-### Seed credentials
+---
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@gestorcitas.app` | `Admin1234!` |
-| User | `usuario@ejemplo.com` | `User1234!` |
+## Variables de entorno
+
+| Variable | Requerida | Descripción |
+|----------|-----------|-------------|
+| `DATABASE_URL` | Sí | Connection string PostgreSQL |
+| `JWT_SECRET` | Sí | Secreto para firmar JWT |
+| `JWT_EXPIRES_IN` | No | TTL del token (default `15m`) |
+| `ENCRYPTION_KEY` | Sí | Clave hex de 64 chars para AES-256-GCM |
+| `HASH_SALT` | Sí | Salt para hashing unidireccional |
+| `FRONTEND_URL` | Sí | Origen del frontend para CORS y redirects de Stripe |
+| `STRIPE_SECRET_KEY` | Sí | Clave secreta de Stripe |
+| `STRIPE_WEBHOOK_SECRET` | Sí | Secreto de firma del webhook de Stripe |
+| `STRIPE_DEMO_MODE` | No | `true` para omitir Stripe y usar pagos demo |
+| `REDIS_URL` | Sí | Connection string Redis para BullMQ |
+| `SENDGRID_API_KEY` | No | API key de SendGrid para emails (empieza con `SG.`) |
+| `MAIL_FROM` | No | Dirección remitente de emails (debe estar verificada en SendGrid) |
+| `NOTIFICATIONS_DEMO_MODE` | No | `true` para simular notificaciones sin enviar. `false` para forzar envío real |
+| `TWILIO_ACCOUNT_SID` | No | Account SID de Twilio para SMS |
+| `TWILIO_AUTH_TOKEN` | No | Auth token de Twilio |
+| `TWILIO_FROM_NUMBER` | No | Número de Twilio en formato E.164 |
+| `S3_ENDPOINT` | No | Endpoint S3-compatible para documentos |
+| `S3_BUCKET` | No | Nombre del bucket |
+| `S3_ACCESS_KEY` | No | Access key S3 |
+| `S3_SECRET_KEY` | No | Secret key S3 |
+| `PORT` | No | Puerto del backend (default `3001`) |
+| `LOG_LEVEL` | No | Nivel de log Winston (default `info`) |
 
 ---
 
-## How to update data
+## Workflow de desarrollo
 
-### Add a new organization
-
-```bash
-curl -X POST http://localhost:3001/api/organizations \
-  -H "Authorization: Bearer <admin-token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Agencia Tributaria",
-    "slug": "aeat",
-    "country": "ES",
-    "website": "https://www.agenciatributaria.es"
-  }'
-```
-
-### Add a new procedure
+Ver [WORKFLOW.md](./WORKFLOW.md) para la guía completa.
 
 ```bash
-curl -X POST http://localhost:3001/api/procedures \
-  -H "Authorization: Bearer <admin-token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "organizationId": "<org-id>",
-    "name": "Cita previa IRPF",
-    "slug": "cita-irpf",
-    "category": "Fiscal",
-    "serviceFee": 14.99,
-    "currency": "EUR",
-    "formSchema": {
-      "fields": [
-        { "name": "nif", "label": "NIF", "type": "text", "required": true },
-        { "name": "phone", "label": "Teléfono", "type": "tel", "required": true }
-      ]
-    }
-  }'
-```
-
-### Run a compliance review on a connector
-
-```bash
-curl -X POST http://localhost:3001/api/compliance/review \
-  -H "Authorization: Bearer <compliance-officer-token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "connectorId": "<connector-id>",
-    "termsChecked": true,
-    "robotsTxtChecked": true,
-    "apiDocsChecked": true,
-    "hasOfficialApi": true,
-    "hasAuthorizedIntegration": false,
-    "requiresCaptchaBypass": false,
-    "requiresAntiBotEvasion": false,
-    "requiresRateLimitEvasion": false,
-    "requiresAuthBypass": false,
-    "legalBasis": "API pública oficial — ver documentación en portal"
-  }'
-```
-
-### Toggle a connector on/off
-
-```bash
-curl -X POST http://localhost:3001/api/connectors/<id>/toggle \
-  -H "Authorization: Bearer <admin-token>"
-```
-
-### Update seed data
-
-Edit `apps/backend/prisma/seed.ts` and re-run:
-
-```bash
-npm run db:seed
-```
-
-### Database migrations
-
-```bash
-# Create a new migration after schema changes
-npm run db:migrate
-
-# Open Prisma Studio (visual DB browser)
-npm run db:studio
-```
-
----
-
-## Environment variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `JWT_SECRET` | Yes | Secret for signing JWT tokens |
-| `JWT_EXPIRES_IN` | No | Token TTL (default `15m`) |
-| `ENCRYPTION_KEY` | Yes | 64-char hex key for AES-256-GCM |
-| `HASH_SALT` | Yes | Salt for one-way hashing |
-| `FRONTEND_URL` | Yes | Frontend origin for CORS and Stripe redirects |
-| `STRIPE_SECRET_KEY` | Yes | Stripe secret key (live or test mode) |
-| `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signing secret |
-| `STRIPE_DEMO_MODE` | No | Set to `true` to skip Stripe and use demo payments |
-| `REDIS_URL` | Yes | Redis connection string for BullMQ |
-| `S3_ENDPOINT` | No | S3-compatible storage endpoint |
-| `S3_BUCKET` | No | Bucket name for document storage |
-| `S3_ACCESS_KEY` | No | S3 access key |
-| `S3_SECRET_KEY` | No | S3 secret key |
-| `SMTP_HOST` | No | SMTP server for email notifications |
-| `PORT` | No | Backend port (default `3001`) |
-| `LOG_LEVEL` | No | Winston log level (default `info`) |
-
----
-
-## Development workflow
-
-See [WORKFLOW.md](./WORKFLOW.md) for the full guide.
-
-```bash
-# Install git hooks (once per clone)
+# Instalar git hooks (una vez por clon)
 bash .workflow/install-hooks.sh
 
-# Start a new task
-gw start feature/my-feature
+# Iniciar una nueva tarea
+bash .workflow/start.sh feature/mi-feature
 
-# Push with auto-sync and validation
-gw push
+# Push con auto-sync y validación
+bash .workflow/push.sh
 
-# Promote to QA
-gw promote qa
+# Promover a QA
+bash .workflow/promote.sh qa
 
-# Release to production
-gw promote prod
+# Release a producción
+bash .workflow/promote.sh prod
 ```
 
-Branch model: `feature/*` and `fix/*` branch from `qa`. `hotfix/*` branches from `main`. All automation via the `gw` CLI.
+Modelo de ramas: `feature/*` y `fix/*` parten de `qa`. `hotfix/*` parte de `main`.
 
 ---
 
-## QA Environment
+## Aviso legal
 
-A dedicated QA environment runs on Railway, isolated from production.
-
-### URLs
-
-| Service | URL |
-|---------|-----|
-| Backend QA | Configurar en secret `QA_BACKEND_URL` |
-| Frontend QA | Configurar en secret `QA_FRONTEND_URL` |
-
-### Credenciales de prueba
-
-| Rol | Email | Contraseña |
-|-----|-------|------------|
-| Admin | `admin@gestorcitas.app` | `Admin1234!` |
-| Usuario | `usuario@ejemplo.com` | `User1234!` |
-
-### Variables de entorno necesarias (GitHub Secrets)
-
-| Secret | Descripción |
-|--------|-------------|
-| `QA_BACKEND_DEPLOY_HOOK` | Deploy hook de Railway para el servicio `backend-qa` |
-| `QA_FRONTEND_DEPLOY_HOOK` | Deploy hook de Railway para el servicio `frontend-qa` |
-| `QA_BACKEND_URL` | URL pública del backend QA (sin `/api`) |
-| `QA_FRONTEND_URL` | URL pública del frontend QA |
-| `QA_DATABASE_URL` | Connection string de la base de datos QA |
-
-### Cómo crear el proyecto QA en Railway
-
-1. Crear proyecto `citas-qa` en Railway con servicios: `backend-qa`, `frontend-qa`, `postgres-qa`
-2. Configurar variables de entorno en `backend-qa`:
-   - `DATABASE_URL` → URL interna de `postgres-qa`
-   - `JWT_SECRET` → valor distinto al de producción
-   - `ENCRYPTION_KEY` → valor distinto al de producción
-   - `STRIPE_DEMO_MODE=true`
-   - `FRONTEND_URL` → URL de `frontend-qa`
-   - `NODE_ENV=production`
-3. Configurar variables de entorno en `frontend-qa`:
-   - `NEXT_PUBLIC_API_URL` → URL de `backend-qa` + `/api`
-   - `NEXT_PUBLIC_STRIPE_DEMO_MODE=true`
-4. Obtener los deploy hooks de Railway y agregarlos como secrets en GitHub
-
-### Ejecutar la Regression Suite contra QA
-
-```bash
-# Correr todos los tests apuntando al backend QA
-BACKEND_URL=<QA_BACKEND_URL> npm test --workspace=apps/backend
-
-# O disparar el workflow manualmente desde GitHub Actions
-# Actions → Regression — Daily → Run workflow
-```
-
-El workflow de regresión diaria (`regression.yml`) corre automáticamente a las 06:00 UTC contra `main`. Si falla, crea un issue con label `regression` automáticamente.
-
----
-
-## Legal disclaimer
-
-This application is an independent intermediary service. It does not represent, is not affiliated with, and has not been authorized by any government agency or public organization. All trademarks and names of public organizations belong to their respective owners.
+Esta aplicación es un servicio intermediario independiente. No representa, no está afiliada ni ha sido autorizada por ningún organismo gubernamental o entidad pública. Todas las marcas y nombres de organismos públicos pertenecen a sus respectivos propietarios.
