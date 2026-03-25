@@ -23,8 +23,14 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error('No refresh token');
         const { data } = await axios.post(`${original.baseURL}/auth/refresh`, { refreshToken });
-        localStorage.setItem('accessToken', data.data.accessToken);
-        original.headers.Authorization = `Bearer ${data.data.accessToken}`;
+        const newToken = data.data.accessToken;
+        localStorage.setItem('accessToken', newToken);
+        // Sync with zustand store if available
+        try {
+          const { useAuthStore } = await import('@/store/auth.store');
+          useAuthStore.setState({ accessToken: newToken });
+        } catch { /* ignore if store not available */ }
+        original.headers.Authorization = `Bearer ${newToken}`;
         return api(original);
       } catch {
         localStorage.removeItem('accessToken');
