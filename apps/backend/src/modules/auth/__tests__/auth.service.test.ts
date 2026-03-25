@@ -72,6 +72,7 @@ describe('authService.login', () => {
     role: 'USER',
     passwordHash: 'hashed',
     isActive: true,
+    isEmailVerified: true,
     mfaEnabled: false,
     mfaSecret: null,
   };

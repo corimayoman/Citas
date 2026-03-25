@@ -74,7 +74,7 @@ router.post('/reset-and-seed', authorize('ADMIN'), async (_req: Request, res: Re
     return;
   }
   try {
-    const { resetAndSeed } = await import('../../prisma/reset-and-seed');
+    const { resetAndSeed } = await import('../../../prisma/reset-and-seed');
     await resetAndSeed();
     res.json({ data: { ok: true, message: 'Database reset and seeded successfully' } });
   } catch (err) { next(err); }
