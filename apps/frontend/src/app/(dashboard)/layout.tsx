@@ -6,13 +6,14 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuthStore();
+  const { user, _hasHydrated } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) router.push('/login');
-  }, [user, router]);
+    if (_hasHydrated && !user) router.push('/login');
+  }, [user, _hasHydrated, router]);
 
+  if (!_hasHydrated) return null;
   if (!user) return null;
 
   return (

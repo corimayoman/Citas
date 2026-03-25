@@ -1,19 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import express from 'express';
 import { z } from 'zod';
 import { authenticate } from '../../middleware/auth';
 import { paymentService } from './payment.service';
 
 const router = Router();
 
-// Stripe webhook — raw body required
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const sig = req.headers['stripe-signature'] as string;
-    await paymentService.handleWebhook(req.body, sig);
-    res.json({ received: true });
-  } catch (err) { next(err); }
-});
+// Note: /webhook is handled in main.ts before express.json() to preserve raw body for Stripe signature verification
 
 router.use(authenticate);
 
