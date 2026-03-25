@@ -8,4 +8,8 @@
   input, select, textarea {
     @apply bg-input text-foreground placeholder:text-muted-foreground;
   }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #080810; }
+  ::-webkit-scrollbar-thumb { background: #1f1f35; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #FF0A6C; }
 }
