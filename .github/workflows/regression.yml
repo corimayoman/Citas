@@ -55,6 +55,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/gestor_citas_test
 
+      - name: Validate documentation
+        run: bash scripts/validate-docs.sh
+
       - name: Run regression suite
         id: tests
         run: npm test -- --json --outputFile=regression-report.json

@@ -611,6 +611,7 @@ docker-compose up -d
 | `S3_BUCKET` | No | Nombre del bucket |
 | `S3_ACCESS_KEY` | No | Access key S3 |
 | `S3_SECRET_KEY` | No | Secret key S3 |
+| `S3_REGION` | No | Región del bucket S3 (ej: `eu-west-1`) |
 | `PORT` | No | Puerto del backend (default `3001`) |
 | `LOG_LEVEL` | No | Nivel de log Winston (default `info`) |
 
