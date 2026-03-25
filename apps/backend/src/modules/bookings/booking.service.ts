@@ -4,6 +4,7 @@ import { connectorRegistry } from '../connectors/connector.registry';
 import { auditService } from '../audit/audit.service';
 import { notificationService } from '../notifications/notification.service';
 import { encrypt } from '../../lib/crypto';
+import { citaDisponibleHtml, citaConfirmadaHtml } from '../../lib/email-templates';
 
 export const bookingService = {
   async createDraft(userId: string, data: {
@@ -158,6 +159,11 @@ export const bookingService = {
       subject: 'Encontramos una cita disponible',
       body: `Encontramos una cita para "${booking.procedure.name}". Tenés hasta el ${paymentDeadline.toLocaleDateString('es-ES')} para pagar y confirmarla. Si no pagás, la cita se libera.`,
       metadata: { bookingId: booking.id, paymentDeadline: paymentDeadline.toISOString() },
+      html: citaDisponibleHtml({
+        procedureName: booking.procedure.name,
+        paymentDeadline: paymentDeadline.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        bookingId: booking.id,
+      }),
     });
   },
 
@@ -190,6 +196,15 @@ export const bookingService = {
         subject: `Tu cita para ${booking.procedure.name} está confirmada`,
         body: `Tu cita fue confirmada.\n\nFecha: ${new Date(appt.appointmentDate).toLocaleDateString('es-ES')}\nHora: ${appt.appointmentTime}\nLugar: ${appt.location || 'Por confirmar'}\nCódigo: ${appt.confirmationCode}\n\n${appt.instructions || ''}`,
         metadata: { bookingId, appointmentDate: appt.appointmentDate, confirmationCode: appt.confirmationCode },
+        html: citaConfirmadaHtml({
+          procedureName: booking.procedure.name,
+          appointmentDate: new Date(appt.appointmentDate).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+          appointmentTime: appt.appointmentTime,
+          location: appt.location || 'Por confirmar',
+          confirmationCode: appt.confirmationCode || '',
+          instructions: appt.instructions || 'Traé tu documentación original.',
+          bookingId,
+        }),
       });
     }
   },
