@@ -491,6 +491,7 @@ Docs interactivos: `http://localhost:3001/api/docs`
 | `GET` | `/admin/bookings` | Admin/Operator | Todos los bookings |
 | `GET` | `/admin/users` | Admin | Todas las cuentas |
 | `GET` | `/admin/audit-logs` | Admin/Compliance | Audit trail inmutable |
+| `POST` | `/admin/reset-and-seed` | Admin | Resetea y recrea los datos base (orgs, procedimientos, usuarios seed) — no disponible en producción |
 
 ### Health
 

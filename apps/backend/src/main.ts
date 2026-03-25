@@ -102,6 +102,15 @@ async function bootstrap() {
     await prisma.$connect();
     logger.info('Database connected');
 
+    // Auto-seed if DB is empty (first boot or after reset)
+    const userCount = await prisma.user.count();
+    if (userCount === 0) {
+      logger.info('Empty database detected — running seed...');
+      const { resetAndSeed } = await import('../prisma/reset-and-seed');
+      await resetAndSeed();
+      logger.info('Seed completed');
+    }
+
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`Swagger docs: http://localhost:${PORT}/api/docs`);
