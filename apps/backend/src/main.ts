@@ -26,6 +26,9 @@ import complianceRoutes from './modules/compliance/compliance.routes';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust Railway's proxy (required for express-rate-limit and correct IP detection)
+app.set('trust proxy', 1);
+
 // ─── Security middleware ──────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
