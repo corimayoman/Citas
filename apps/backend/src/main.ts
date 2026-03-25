@@ -106,7 +106,7 @@ async function bootstrap() {
     const userCount = await prisma.user.count();
     if (userCount === 0) {
       logger.info('Empty database detected — running seed...');
-      const { resetAndSeed } = await import('../prisma/reset-and-seed');
+      const { resetAndSeed } = await import('./lib/reset-and-seed');
       await resetAndSeed();
       logger.info('Seed completed');
     }
