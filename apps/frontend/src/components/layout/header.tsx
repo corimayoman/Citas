@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 export function Header() {
   const { user, logout } = useAuthStore();
@@ -14,20 +14,18 @@ export function Header() {
   };
 
   return (
-    <header className="bg-white border-b px-6 py-3 flex items-center justify-between">
-      <div />
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <User className="h-4 w-4" />
-          <span>{user?.email}</span>
-          <span className="bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded-full">
-            {user?.role}
-          </span>
-        </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          <LogOut className="h-4 w-4" />
-        </Button>
-      </div>
+    <header className="bg-[#0a0a0a] border-b border-[#1f1f1f] px-6 py-3 flex items-center justify-end gap-3">
+      <span className="text-sm text-[#737373]">{user?.email}</span>
+      <span className="text-[11px] text-[#525252] border border-[#1f1f1f] px-2 py-0.5 rounded-full">
+        {user?.role}
+      </span>
+      <button
+        onClick={handleLogout}
+        className="text-[#525252] hover:text-white transition-colors ml-1"
+        aria-label="Cerrar sesión"
+      >
+        <LogOut className="h-4 w-4" />
+      </button>
     </header>
   );
 }
