@@ -59,8 +59,8 @@ describe('bookingService.createDraft', () => {
   };
 
   it('happy path: crea booking con status SEARCHING', async () => {
-    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: 'profile-1' });
-    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({ id: 'proc-1', connector: null });
+    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: 'profile-1', documentType: 'DNI', nationality: 'ES', birthDate: new Date('1990-01-01') });
+    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({ id: 'proc-1', connector: null, formSchema: { fields: [] }, eligibilityRules: null });
     (mockPrisma.bookingRequest.create as jest.Mock).mockResolvedValue({
       id: 'booking-1',
       status: 'SEARCHING',
@@ -79,18 +79,45 @@ describe('bookingService.createDraft', () => {
 
   it('perfil inexistente lanza AppError 404', async () => {
     (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue(null);
-    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({ id: 'proc-1' });
+    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({ id: 'proc-1', formSchema: { fields: [] }, eligibilityRules: null });
 
     await expect(bookingService.createDraft(userId, data))
       .rejects.toMatchObject({ statusCode: 404, code: 'PROFILE_NOT_FOUND' });
   });
 
   it('trámite inexistente lanza AppError 404', async () => {
-    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: 'profile-1' });
+    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: 'profile-1', documentType: 'DNI', nationality: 'ES', birthDate: new Date('1990-01-01') });
     (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue(null);
 
     await expect(bookingService.createDraft(userId, data))
       .rejects.toMatchObject({ statusCode: 404, code: 'PROCEDURE_NOT_FOUND' });
+  });
+
+  it('rechaza booking si faltan campos requeridos del formulario', async () => {
+    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: 'profile-1', documentType: 'DNI', nationality: 'ES', birthDate: new Date('1990-01-01') });
+    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({
+      id: 'proc-1', connector: null,
+      formSchema: { fields: [{ name: 'naf', label: 'NAF', required: true }] },
+      eligibilityRules: null,
+    });
+
+    await expect(bookingService.createDraft(userId, { ...data, formData: {} }))
+      .rejects.toMatchObject({ statusCode: 422, code: 'ELIGIBILITY_FAILED' });
+  });
+
+  it('rechaza booking si solicitante es menor de edad', async () => {
+    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({
+      id: 'profile-1', documentType: 'DNI', nationality: 'ES',
+      birthDate: new Date(Date.now() - 15 * 365.25 * 24 * 60 * 60 * 1000),
+    });
+    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({
+      id: 'proc-1', connector: null,
+      formSchema: { fields: [] },
+      eligibilityRules: { minAge: 18 },
+    });
+
+    await expect(bookingService.createDraft(userId, data))
+      .rejects.toMatchObject({ statusCode: 422, code: 'ELIGIBILITY_FAILED' });
   });
 });
 

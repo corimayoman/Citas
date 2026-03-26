@@ -405,7 +405,7 @@ Docs interactivos: `http://localhost:3001/api/docs`
 | Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
 | `GET` | `/bookings` | Bearer | Listar propios (paginado) |
-| `POST` | `/bookings` | Bearer | Crear booking draft |
+| `POST` | `/bookings` | Bearer | Crear booking (valida elegibilidad antes de crear) |
 | `GET` | `/bookings/:id` | Bearer | Detalle con intentos y turno |
 | `POST` | `/bookings/:id/validate` | Bearer | Verificar elegibilidad del solicitante |
 | `POST` | `/bookings/:id/confirm-payment` | Bearer | Confirmar turno tras `PRE_CONFIRMED` |

@@ -16,12 +16,62 @@ export const bookingService = {
     preferredTimeSlot?: string;
   }) {
     const [profile, procedure] = await Promise.all([
-      prisma.applicantProfile.findFirst({ where: { id: data.applicantProfileId, userId } }),
+      prisma.applicantProfile.findFirst({ where: { id: data.applicantProfileId, userId }, select: { id: true, documentType: true, nationality: true, birthDate: true } }),
       prisma.procedure.findUnique({ where: { id: data.procedureId }, include: { connector: true } }),
     ]);
 
     if (!profile) throw new AppError(404, 'Perfil de solicitante no encontrado', 'PROFILE_NOT_FOUND');
     if (!procedure) throw new AppError(404, 'Trámite no encontrado', 'PROCEDURE_NOT_FOUND');
+
+    // ── Validar elegibilidad antes de crear el booking ──
+    const formData = data.formData ?? {};
+    const rules = (procedure.eligibilityRules ?? {}) as Record<string, unknown>;
+    const formSchema = (procedure.formSchema as { fields?: Array<{ name: string; label: string; required?: boolean }> }) ?? {};
+    const errors: string[] = [];
+    const missingFields: string[] = [];
+
+    // Campos requeridos del formulario
+    for (const field of formSchema.fields ?? []) {
+      if (field.required && !formData[field.name]) {
+        missingFields.push(field.name);
+        errors.push(`Campo requerido: ${field.label}`);
+      }
+    }
+
+    // Edad mínima
+    if (rules.minAge && profile.birthDate) {
+      const age = Math.floor((Date.now() - new Date(profile.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      if (age < (rules.minAge as number)) {
+        errors.push(`Edad mínima requerida: ${rules.minAge} años (el solicitante tiene ${age})`);
+      }
+    }
+
+    // Tipo de documento
+    if (Array.isArray(rules.requiredDocuments) && rules.requiredDocuments.length > 0) {
+      const docType = profile.documentType?.toUpperCase();
+      const allowed = (rules.requiredDocuments as string[]).map(d => d.toUpperCase());
+      if (!allowed.includes(docType)) {
+        errors.push(`Tipo de documento no válido: ${profile.documentType}. Se requiere: ${(rules.requiredDocuments as string[]).join(', ')}`);
+      }
+    }
+
+    // Nacionalidad
+    if (Array.isArray(rules.allowedNationalities) && rules.allowedNationalities.length > 0) {
+      const nat = profile.nationality?.toUpperCase();
+      if (!(rules.allowedNationalities as string[]).map(n => n.toUpperCase()).includes(nat)) {
+        errors.push(`Nacionalidad no habilitada para este trámite: ${profile.nationality}`);
+      }
+    }
+    if (Array.isArray(rules.excludedNationalities)) {
+      const nat = profile.nationality?.toUpperCase();
+      if ((rules.excludedNationalities as string[]).map(n => n.toUpperCase()).includes(nat)) {
+        errors.push(`Nacionalidad excluida de este trámite: ${profile.nationality}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new AppError(422, `No se puede crear la reserva: ${errors.join('; ')}`, 'ELIGIBILITY_FAILED', { errors, missingFields });
+    }
 
     const encryptedFormData = { _encrypted: encrypt(JSON.stringify(data.formData)) };
 
