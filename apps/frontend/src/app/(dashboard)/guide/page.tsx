@@ -28,7 +28,7 @@ const PROCEDURE_CATEGORIES = [
   {
     icon: '💼',
     name: 'Empleo',
-    color: 'bg-[#0d0d1a] border-[#1f1f35]',
+    color: 'bg-card border-border',
     iconBg: 'bg-blue-900/30 text-blue-400',
     procedures: [
       { name: 'Prestación por desempleo (SEPE)', fee: '19,99 €', time: '45 min', mode: 'manual' },
@@ -39,7 +39,7 @@ const PROCEDURE_CATEGORIES = [
   {
     icon: '🚗',
     name: 'Tráfico y vehículos',
-    color: 'bg-[#0d0d1a] border-[#1f1f35]',
+    color: 'bg-card border-border',
     iconBg: 'bg-orange-900/30 text-orange-400',
     procedures: [
       { name: 'Canje de permiso de conducir extranjero', fee: '24,99 €', time: '60 min', mode: 'manual' },
@@ -50,7 +50,7 @@ const PROCEDURE_CATEGORIES = [
   {
     icon: '🌍',
     name: 'Extranjería',
-    color: 'bg-[#0d0d1a] border-[#1f1f35]',
+    color: 'bg-card border-border',
     iconBg: 'bg-emerald-900/30 text-emerald-400',
     procedures: [
       { name: 'Renovación de NIE / TIE', fee: '24,99 €', time: '60 min', mode: 'manual' },
@@ -61,7 +61,7 @@ const PROCEDURE_CATEGORIES = [
   {
     icon: '🏛️',
     name: 'Administración general',
-    color: 'bg-[#0d0d1a] border-[#1f1f35]',
+    color: 'bg-card border-border',
     iconBg: 'bg-purple-900/30 text-purple-400',
     procedures: [
       { name: 'Certificado de empadronamiento', fee: '9,99 €', time: '15 min', mode: 'api' },
@@ -72,7 +72,7 @@ const PROCEDURE_CATEGORIES = [
   {
     icon: '🏥',
     name: 'Sanidad',
-    color: 'bg-[#0d0d1a] border-[#1f1f35]',
+    color: 'bg-card border-border',
     iconBg: 'bg-red-900/30 text-red-400',
     procedures: [
       { name: 'Tarjeta sanitaria individual', fee: '9,99 €', time: '20 min', mode: 'manual' },
@@ -83,7 +83,7 @@ const PROCEDURE_CATEGORIES = [
   {
     icon: '🎓',
     name: 'Educación',
-    color: 'bg-[#0d0d1a] border-[#1f1f35]',
+    color: 'bg-card border-border',
     iconBg: 'bg-yellow-900/30 text-yellow-400',
     procedures: [
       { name: 'Homologación de títulos extranjeros', fee: '24,99 €', time: '60 min', mode: 'manual' },
@@ -142,7 +142,7 @@ function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: 
         {eyebrow}
       </span>
       <h2 className="text-2xl font-bold text-foreground mb-3">{title}</h2>
-      {subtitle && <p className="text-[#6b6b8a] max-w-xl mx-auto text-sm leading-relaxed">{subtitle}</p>}
+      {subtitle && <p className="text-muted-foreground max-w-xl mx-auto text-sm leading-relaxed">{subtitle}</p>}
     </div>
   );
 }
@@ -154,7 +154,7 @@ function ModeChip({ mode }: { mode: string }) {
     </span>
   );
   return (
-    <span className="inline-flex items-center gap-1 text-xs bg-[#1f1f35] text-[#6b6b8a] px-2 py-0.5 rounded-full font-medium">
+    <span className="inline-flex items-center gap-1 text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full font-medium">
       <Hand className="h-3 w-3" /> Asistido
     </span>
   );
@@ -163,16 +163,16 @@ function ModeChip({ mode }: { mode: string }) {
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="border border-[#1f1f35] rounded-lg overflow-hidden">
+    <div className="border border-border rounded-lg overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-[#13131f] transition-colors"
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-input transition-colors"
       >
-        <span className="font-medium text-sm pr-4 text-white">{q}</span>
-        <ChevronDown className={cn('h-4 w-4 text-[#6b6b8a] shrink-0 transition-transform duration-200', open && 'rotate-180')} />
+        <span className="font-medium text-sm pr-4 text-foreground">{q}</span>
+        <ChevronDown className={cn('h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200', open && 'rotate-180')} />
       </button>
       {open && (
-        <div className="px-4 pb-4 text-sm text-[#6b6b8a] leading-relaxed border-t border-[#1f1f35] bg-[#13131f]/30 pt-3">
+        <div className="px-4 pb-4 text-sm text-muted-foreground leading-relaxed border-t border-border bg-input/30 pt-3">
           {a}
         </div>
       )}
@@ -258,7 +258,7 @@ export default function GuidePage() {
       {/* Sticky TOC */}
       <aside className="hidden lg:block w-48 shrink-0">
         <div className="sticky top-6 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#6b6b8a] mb-3">Contenido</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Contenido</p>
           {SECTIONS.map(({ id, label }) => (
             <a
               key={id}
@@ -266,8 +266,8 @@ export default function GuidePage() {
               className={cn(
                 'block text-xs py-1 px-2 rounded transition-colors',
                 activeSection === id
-                  ? 'text-white font-medium bg-[#1f1f35]'
-                  : 'text-[#6b6b8a] hover:text-white'
+                  ? 'text-foreground font-medium bg-secondary'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {label}
@@ -289,10 +289,10 @@ export default function GuidePage() {
               { icon: Hand, title: 'Asistencia guiada', desc: 'Te preparamos todo para que tú completes en 2 minutos.' },
               { icon: Shield, title: 'Seguridad y RGPD', desc: 'Datos cifrados, cumplimiento total con la normativa europea.' },
             ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="bg-[#0d0d1a] border border-[#1f1f35] rounded-lg p-5">
-                <Icon className="h-6 w-6 text-[#FF0A6C] mb-3" />
-                <p className="font-semibold text-sm mb-1 text-white">{title}</p>
-                <p className="text-xs text-[#6b6b8a]">{desc}</p>
+              <div key={title} className="bg-card border border-border rounded-lg p-5">
+                <Icon className="h-6 w-6 text-primary mb-3" />
+                <p className="font-semibold text-sm mb-1 text-foreground">{title}</p>
+                <p className="text-xs text-muted-foreground">{desc}</p>
               </div>
             ))}
           </div>
@@ -305,7 +305,7 @@ export default function GuidePage() {
           <div className="space-y-3">
             {FLOW_STEPS.map((step) => (
               <div key={step.number} className={`flex items-start gap-4 p-4 rounded-lg border ${step.color}`}>
-                <div className="shrink-0 w-8 h-8 rounded-full bg-[#1f1f35] flex items-center justify-center text-xs font-bold text-white">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-foreground">
                   {step.number}
                 </div>
                 <div>
@@ -330,7 +330,7 @@ export default function GuidePage() {
                 </div>
                 <div className="space-y-2">
                   {cat.procedures.map((p) => (
-                    <div key={p.name} className="flex items-center justify-between bg-[#0d0d1a]/60 rounded px-3 py-2">
+                    <div key={p.name} className="flex items-center justify-between bg-card/60 rounded px-3 py-2">
                       <p className="text-xs font-medium truncate pr-2">{p.name}</p>
                       <div className="flex items-center gap-2 shrink-0">
                         <ModeChip mode={p.mode} />
@@ -356,12 +356,12 @@ export default function GuidePage() {
               </div>
               <p className="text-sm text-emerald-400/80">El organismo dispone de una API oficial. La reserva se completa sin intervención manual. Recibes confirmación y código de cita al instante.</p>
             </div>
-            <div className="bg-[#0d0d1a] border border-[#1f1f35] rounded-lg p-6">
+            <div className="bg-card border border-border rounded-lg p-6">
               <div className="flex items-center gap-2 mb-3">
-                <Hand className="h-5 w-5 text-[#6b6b8a]" />
-                <p className="font-semibold text-white">Asistido (manual)</p>
+                <Hand className="h-5 w-5 text-muted-foreground" />
+                <p className="font-semibold text-foreground">Asistido (manual)</p>
               </div>
-              <p className="text-sm text-[#6b6b8a]">Preparamos todos tus datos y te guiamos paso a paso. Tú completas la reserva en el portal oficial en menos de 2 minutos con todo listo.</p>
+              <p className="text-sm text-muted-foreground">Preparamos todos tus datos y te guiamos paso a paso. Tú completas la reserva en el portal oficial en menos de 2 minutos con todo listo.</p>
             </div>
           </div>
         </section>
@@ -371,13 +371,13 @@ export default function GuidePage() {
           <SectionAnchor id="booking-flow" />
           <SectionHeading eyebrow="Paso a paso" title="Proceso de reserva" />
           <div className="relative">
-            <div className="absolute left-4 top-0 bottom-0 w-px bg-[#1f1f35]" />
+            <div className="absolute left-4 top-0 bottom-0 w-px bg-secondary" />
             <div className="space-y-6 pl-12">
               {FLOW_STEPS.map((step) => (
                 <div key={step.number} className="relative">
-                  <div className={`absolute -left-9 w-4 h-4 rounded-full border-2 border-[#080810] ${step.dot}`} />
-                  <p className="font-semibold text-sm text-white">{step.title}</p>
-                  <p className="text-xs text-[#6b6b8a] mt-0.5">{step.description}</p>
+                  <div className={`absolute -left-9 w-4 h-4 rounded-full border-2 border-background ${step.dot}`} />
+                  <p className="font-semibold text-sm text-foreground">{step.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
                 </div>
               ))}
             </div>
@@ -388,19 +388,19 @@ export default function GuidePage() {
         <section>
           <SectionAnchor id="payments" />
           <SectionHeading eyebrow="Tarifas" title="Pagos y precios" subtitle="Tarifa de gestión única por trámite. Sin suscripciones." />
-          <div className="bg-[#0d0d1a] border border-[#1f1f35] rounded-lg divide-y divide-[#1f1f35]">
+          <div className="bg-card border border-border rounded-lg divide-y divide-border">
             {[
               { label: 'Trámites simples (certificados, altas)', price: '9,99 €' },
               { label: 'Trámites estándar (renovaciones, citas)', price: '14,99 €' },
               { label: 'Trámites complejos (extranjería, homologaciones)', price: '24,99 – 29,99 €' },
             ].map(({ label, price }) => (
               <div key={label} className="flex items-center justify-between px-5 py-4">
-                <p className="text-sm text-white">{label}</p>
-                <p className="text-sm font-semibold text-white">{price}</p>
+                <p className="text-sm text-foreground">{label}</p>
+                <p className="text-sm font-semibold text-foreground">{price}</p>
               </div>
             ))}
           </div>
-          <p className="text-xs text-[#6b6b8a] mt-3">Las tasas oficiales del organismo, si las hubiera, son adicionales y se pagan directamente al organismo.</p>
+          <p className="text-xs text-muted-foreground mt-3">Las tasas oficiales del organismo, si las hubiera, son adicionales y se pagan directamente al organismo.</p>
         </section>
 
         {/* Security */}
@@ -414,11 +414,11 @@ export default function GuidePage() {
               { icon: RefreshCw, title: 'Retención mínima', desc: 'Solo conservamos datos el tiempo estrictamente necesario.' },
               { icon: Award, title: 'Intermediario legal', desc: 'Operamos como gestoría digital, dentro del marco legal vigente.' },
             ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="flex items-start gap-3 bg-[#0d0d1a] border border-[#1f1f35] rounded-lg p-4">
-                <Icon className="h-5 w-5 text-[#FF0A6C] shrink-0 mt-0.5" />
+              <div key={title} className="flex items-start gap-3 bg-card border border-border rounded-lg p-4">
+                <Icon className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-white">{title}</p>
-                  <p className="text-xs text-[#6b6b8a] mt-0.5">{desc}</p>
+                  <p className="text-sm font-medium text-foreground">{title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                 </div>
               </div>
             ))}

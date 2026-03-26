@@ -35,7 +35,7 @@ export default function BookingSuccessPage({ params }: { params: { id: string } 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6b6b8a]" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -44,20 +44,20 @@ export default function BookingSuccessPage({ params }: { params: { id: string } 
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
-      <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-8 text-center">
+      <div className="bg-card rounded-lg border border-border p-8 text-center">
         {isConfirmed ? (
           <>
             <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-white mb-2">¡Cita confirmada!</h2>
-            <p className="text-[#6b6b8a] text-sm mb-4">
+            <h2 className="text-xl font-semibold text-foreground mb-2">¡Cita confirmada!</h2>
+            <p className="text-muted-foreground text-sm mb-4">
               Tu pago fue procesado y tu cita está confirmada. Revisá tu expediente para ver la fecha, hora y lugar.
             </p>
           </>
         ) : (
           <>
-            <Loader2 className="h-12 w-12 animate-spin text-[#FF0A6C] mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-white mb-2">Procesando pago...</h2>
-            <p className="text-[#6b6b8a] text-sm mb-4">Un momento, estamos confirmando tu cita.</p>
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">Procesando pago...</h2>
+            <p className="text-muted-foreground text-sm mb-4">Un momento, estamos confirmando tu cita.</p>
           </>
         )}
 
