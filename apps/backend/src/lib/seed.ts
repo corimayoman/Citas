@@ -161,7 +161,22 @@ export async function main() {
           { name: 'reason', label: 'Motivo de la cita', type: 'textarea', required: false },
         ],
       },
-      eligibilityRules: { minAge: 18, requiredDocuments: ['DNI'] },
+      eligibilityRules: { minAge: 18, requiredDocuments: ['DNI', 'NIE', 'Pasaporte'] },
+    },
+  });
+
+  // Add requirements for the demo procedure
+  await prisma.procedureRequirement.upsert({
+    where: { id: 'req-demo-dni' },
+    update: {},
+    create: {
+      id: 'req-demo-dni',
+      procedureId: (await prisma.procedure.findFirst({ where: { slug: 'cita-demo' } }))!.id,
+      name: 'Documento de identidad',
+      description: 'DNI, NIE o Pasaporte en vigor',
+      type: 'document',
+      isRequired: true,
+      order: 1,
     },
   });
 
@@ -192,6 +207,7 @@ export async function main() {
           { name: 'bankAccount', label: 'IBAN', type: 'text', required: true },
         ],
       },
+      eligibilityRules: { minAge: 16, requiredDocuments: ['DNI', 'NIE'] },
     },
   });
 
