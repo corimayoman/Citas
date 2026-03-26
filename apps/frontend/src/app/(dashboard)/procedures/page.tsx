@@ -8,8 +8,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 const integrationBadge = {
-  OFFICIAL_API: { label: 'API Oficial', color: 'bg-emerald-900/30 text-emerald-400', icon: Zap },
-  AUTHORIZED_INTEGRATION: { label: 'Integración autorizada', color: 'bg-blue-900/30 text-blue-400', icon: Zap },
+  OFFICIAL_API: { label: 'API Oficial', color: 'bg-emerald-100 text-emerald-700', icon: Zap },
+  AUTHORIZED_INTEGRATION: { label: 'Integración autorizada', color: 'bg-blue-100 text-blue-700', icon: Zap },
   MANUAL_ASSISTED: { label: 'Asistencia manual', color: 'bg-secondary text-muted-foreground', icon: Hand },
 };
 

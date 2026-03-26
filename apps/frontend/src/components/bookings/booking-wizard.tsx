@@ -95,8 +95,8 @@ export function BookingWizard({ procedure }: WizardProps) {
             <div key={label} className="flex items-center gap-2">
               <div className={cn(
                 'h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium',
-                i < step ? 'bg-primary text-foreground' :
-                i === step ? 'bg-primary text-foreground' :
+                i < step ? 'bg-primary text-white' :
+                i === step ? 'bg-primary text-white' :
                 'bg-secondary text-muted-foreground'
               )}>
                 {i < step ? <Check className="h-3 w-3" /> : i + 1}
@@ -112,7 +112,7 @@ export function BookingWizard({ procedure }: WizardProps) {
 
       <div className="p-6">
         {errorMsg && (
-          <div className="flex items-start gap-2 bg-red-900/20 border border-red-900/40 rounded-md p-3 text-sm text-red-400 mb-4">
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-600 mb-4">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <span>{errorMsg}</span>
           </div>

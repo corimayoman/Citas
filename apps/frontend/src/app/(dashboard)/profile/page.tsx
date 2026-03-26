@@ -96,7 +96,7 @@ function NotificationPreferences({ user }: { user: any }) {
       </div>
 
       {saved && (
-        <p className="text-xs text-emerald-400 flex items-center gap-1">
+        <p className="text-xs text-emerald-600 flex items-center gap-1">
           <CheckCircle className="h-3.5 w-3.5" /> Preferencia guardada
         </p>
       )}
@@ -148,41 +148,41 @@ function NewProfileForm({ onClose }: { onClose: () => void }) {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 bg-red-900/30 border border-red-900/50 rounded-md p-3 text-xs text-red-400">
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md p-3 text-xs text-red-600">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{error}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs font-medium text-foreground">Nombre <span className="text-red-400">*</span></label>
+          <label className="text-xs font-medium text-foreground">Nombre <span className="text-red-600">*</span></label>
           <input value={form.firstName} onChange={e => set('firstName', e.target.value)}
             className="mt-1 w-full border border-border bg-input text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         <div>
-          <label className="text-xs font-medium text-foreground">Apellidos <span className="text-red-400">*</span></label>
+          <label className="text-xs font-medium text-foreground">Apellidos <span className="text-red-600">*</span></label>
           <input value={form.lastName} onChange={e => set('lastName', e.target.value)}
             className="mt-1 w-full border border-border bg-input text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         <div>
-          <label className="text-xs font-medium text-foreground">Tipo de documento <span className="text-red-400">*</span></label>
+          <label className="text-xs font-medium text-foreground">Tipo de documento <span className="text-red-600">*</span></label>
           <select value={form.documentType} onChange={e => set('documentType', e.target.value)}
             className="mt-1 w-full border border-border bg-input text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
             {DOCUMENT_TYPES.map(t => <option key={t}>{t}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs font-medium text-foreground">Número de documento <span className="text-red-400">*</span></label>
+          <label className="text-xs font-medium text-foreground">Número de documento <span className="text-red-600">*</span></label>
           <input value={form.documentNumber} onChange={e => set('documentNumber', e.target.value)}
             className="mt-1 w-full border border-border bg-input text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         <div>
-          <label className="text-xs font-medium text-foreground">Nacionalidad <span className="text-red-400">*</span></label>
+          <label className="text-xs font-medium text-foreground">Nacionalidad <span className="text-red-600">*</span></label>
           <input value={form.nationality} onChange={e => set('nationality', e.target.value)}
             className="mt-1 w-full border border-border bg-input text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         <div>
-          <label className="text-xs font-medium text-foreground">Fecha de nacimiento <span className="text-red-400">*</span></label>
+          <label className="text-xs font-medium text-foreground">Fecha de nacimiento <span className="text-red-600">*</span></label>
           <input type="date" value={form.birthDate} onChange={e => set('birthDate', e.target.value)}
             className="mt-1 w-full border border-border bg-input text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
@@ -275,7 +275,7 @@ export default function ProfilePage() {
           <div>
             <p className="text-muted-foreground text-xs">Email verificado</p>
             <div className="flex items-center gap-2 mt-0.5">
-              <CheckCircle className={`h-3.5 w-3.5 ${user?.isEmailVerified ? 'text-emerald-400' : 'text-muted-foreground'}`} />
+              <CheckCircle className={`h-3.5 w-3.5 ${user?.isEmailVerified ? 'text-emerald-600' : 'text-muted-foreground'}`} />
               <span className="text-foreground">{user?.isEmailVerified ? 'Sí' : 'No'}</span>
               {!user?.isEmailVerified && (
                 <button
@@ -287,12 +287,12 @@ export default function ProfilePage() {
                 </button>
               )}
             </div>
-            {verifyMsg && <p className="text-xs text-emerald-400 mt-1">{verifyMsg}</p>}
+            {verifyMsg && <p className="text-xs text-emerald-600 mt-1">{verifyMsg}</p>}
           </div>
           <div>
             <p className="text-muted-foreground text-xs">Autenticación 2FA</p>
             <div className="flex items-center gap-1 mt-0.5">
-              <Shield className={`h-3.5 w-3.5 ${user?.mfaEnabled ? 'text-emerald-400' : 'text-muted-foreground'}`} />
+              <Shield className={`h-3.5 w-3.5 ${user?.mfaEnabled ? 'text-emerald-600' : 'text-muted-foreground'}`} />
               <span className="text-foreground">{user?.mfaEnabled ? 'Activa' : 'Inactiva'}</span>
             </div>
           </div>
@@ -333,10 +333,10 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {profile.isDefault && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400">Principal</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Principal</span>
                   )}
                   <button onClick={() => deleteProfile.mutate(profile.id)}
-                    className="text-muted-foreground hover:text-red-400 transition-colors">
+                    className="text-muted-foreground hover:text-red-600 transition-colors">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
