@@ -179,3 +179,172 @@ describe('bookingService._confirmSlot', () => {
     expect(mockPrisma.appointment.create as jest.Mock).not.toHaveBeenCalled();
   });
 });
+
+describe('bookingService.validateBooking', () => {
+  const userId = 'user-1';
+  const bookingId = 'booking-1';
+
+  const makeBooking = (overrides: Record<string, unknown> = {}) => ({
+    id: bookingId,
+    userId,
+    formData: { firstName: 'Juan', lastName: 'Pérez', documentNumber: '12345678A', phone: '600123456' },
+    applicantProfile: {
+      id: 'profile-1',
+      firstName: 'Juan',
+      lastName: 'Pérez',
+      documentType: 'DNI',
+      documentNumber: '12345678A',
+      nationality: 'ES',
+      birthDate: new Date('1990-01-15'),
+    },
+    procedure: {
+      id: 'proc-1',
+      formSchema: {
+        fields: [
+          { name: 'firstName', label: 'Nombre', type: 'text', required: true },
+          { name: 'lastName', label: 'Apellidos', type: 'text', required: true },
+          { name: 'documentNumber', label: 'Número de documento', type: 'text', required: true },
+          { name: 'phone', label: 'Teléfono', type: 'tel', required: true },
+        ],
+      },
+      eligibilityRules: { minAge: 18, requiredDocuments: ['DNI', 'NIE', 'Pasaporte'] },
+      requirements: [],
+      connector: null,
+    },
+    ...overrides,
+  });
+
+  it('booking no encontrado lanza AppError 404', async () => {
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(bookingService.validateBooking(bookingId, userId))
+      .rejects.toMatchObject({ statusCode: 404, code: 'BOOKING_NOT_FOUND' });
+  });
+
+  it('solicitante elegible: todos los campos completos, edad y documento válidos', async () => {
+    const booking = makeBooking();
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+    (mockPrisma.bookingRequest.update as jest.Mock).mockImplementation(({ data }) => Promise.resolve({ ...booking, ...data }));
+
+    const result = await bookingService.validateBooking(bookingId, userId) as any;
+
+    expect(result.validationResult).toMatchObject({ isValid: true, errors: [], missingFields: [] });
+    expect(result.eligibilityResult).toMatchObject({ checked: true, eligible: true, errors: [] });
+  });
+
+  it('rechaza solicitante menor de edad', async () => {
+    const booking = makeBooking({
+      applicantProfile: {
+        ...makeBooking().applicantProfile,
+        birthDate: new Date(Date.now() - 15 * 365.25 * 24 * 60 * 60 * 1000), // 15 años
+      },
+    });
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+    (mockPrisma.bookingRequest.update as jest.Mock).mockImplementation(({ data }) => Promise.resolve({ ...booking, ...data }));
+
+    const result = await bookingService.validateBooking(bookingId, userId) as any;
+
+    expect(result.eligibilityResult).toMatchObject({ eligible: false });
+    expect(result.validationResult.errors).toEqual(
+      expect.arrayContaining([expect.stringContaining('Edad mínima requerida: 18')])
+    );
+  });
+
+  it('rechaza tipo de documento no permitido', async () => {
+    const booking = makeBooking({
+      applicantProfile: {
+        ...makeBooking().applicantProfile,
+        documentType: 'Cédula',
+      },
+    });
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+    (mockPrisma.bookingRequest.update as jest.Mock).mockImplementation(({ data }) => Promise.resolve({ ...booking, ...data }));
+
+    const result = await bookingService.validateBooking(bookingId, userId) as any;
+
+    expect(result.eligibilityResult).toMatchObject({ eligible: false });
+    expect(result.validationResult.errors).toEqual(
+      expect.arrayContaining([expect.stringContaining('Tipo de documento no válido: Cédula')])
+    );
+  });
+
+  it('detecta campos requeridos faltantes en el formulario', async () => {
+    const booking = makeBooking({
+      formData: { firstName: 'Juan' }, // faltan lastName, documentNumber, phone
+    });
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+    (mockPrisma.bookingRequest.update as jest.Mock).mockImplementation(({ data }) => Promise.resolve({ ...booking, ...data }));
+
+    const result = await bookingService.validateBooking(bookingId, userId) as any;
+
+    expect(result.validationResult.isValid).toBe(false);
+    expect(result.validationResult.missingFields).toEqual(
+      expect.arrayContaining(['lastName', 'documentNumber', 'phone'])
+    );
+  });
+
+  it('rechaza nacionalidad excluida', async () => {
+    const booking = makeBooking({
+      procedure: {
+        ...makeBooking().procedure,
+        eligibilityRules: { excludedNationalities: ['XX'] },
+      },
+      applicantProfile: {
+        ...makeBooking().applicantProfile,
+        nationality: 'XX',
+      },
+    });
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+    (mockPrisma.bookingRequest.update as jest.Mock).mockImplementation(({ data }) => Promise.resolve({ ...booking, ...data }));
+
+    const result = await bookingService.validateBooking(bookingId, userId) as any;
+
+    expect(result.eligibilityResult).toMatchObject({ eligible: false });
+    expect(result.validationResult.errors).toEqual(
+      expect.arrayContaining([expect.stringContaining('Nacionalidad excluida')])
+    );
+  });
+
+  it('genera warnings para requisitos de tipo document', async () => {
+    const booking = makeBooking({
+      procedure: {
+        ...makeBooking().procedure,
+        requirements: [
+          { id: 'req-1', name: 'DNI original', description: 'En vigor', type: 'document', isRequired: true, order: 1 },
+          { id: 'req-2', name: 'Foto carnet', description: null, type: 'document', isRequired: false, order: 2 },
+        ],
+      },
+    });
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+    (mockPrisma.bookingRequest.update as jest.Mock).mockImplementation(({ data }) => Promise.resolve({ ...booking, ...data }));
+
+    const result = await bookingService.validateBooking(bookingId, userId) as any;
+
+    expect(result.validationResult.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('DNI original'),
+        expect.stringContaining('Foto carnet'),
+      ])
+    );
+  });
+
+  it('acumula múltiples errores cuando hay varios problemas', async () => {
+    const booking = makeBooking({
+      formData: {}, // todos los campos faltantes
+      applicantProfile: {
+        ...makeBooking().applicantProfile,
+        documentType: 'Cédula',
+        birthDate: new Date(Date.now() - 10 * 365.25 * 24 * 60 * 60 * 1000), // 10 años
+      },
+    });
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+    (mockPrisma.bookingRequest.update as jest.Mock).mockImplementation(({ data }) => Promise.resolve({ ...booking, ...data }));
+
+    const result = await bookingService.validateBooking(bookingId, userId) as any;
+
+    expect(result.validationResult.isValid).toBe(false);
+    expect(result.eligibilityResult.eligible).toBe(false);
+    // Al menos: 4 campos faltantes + edad + documento
+    expect(result.validationResult.errors.length).toBeGreaterThanOrEqual(6);
+  });
+});

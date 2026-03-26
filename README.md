@@ -407,8 +407,39 @@ Docs interactivos: `http://localhost:3001/api/docs`
 | `GET` | `/bookings` | Bearer | Listar propios (paginado) |
 | `POST` | `/bookings` | Bearer | Crear booking draft |
 | `GET` | `/bookings/:id` | Bearer | Detalle con intentos y turno |
-| `POST` | `/bookings/:id/validate` | Bearer | Verificar elegibilidad |
+| `POST` | `/bookings/:id/validate` | Bearer | Verificar elegibilidad del solicitante |
 | `POST` | `/bookings/:id/confirm-payment` | Bearer | Confirmar turno tras `PRE_CONFIRMED` |
+
+#### Validación de elegibilidad (`POST /bookings/:id/validate`)
+
+Antes de avanzar con un booking, este endpoint valida que el solicitante cumple los requisitos del trámite:
+
+| Validación | Fuente | Ejemplo de error |
+|------------|--------|-----------------|
+| Campos requeridos del formulario | `procedure.formSchema.fields[].required` | "Campo requerido: Número de documento" |
+| Edad mínima / máxima | `procedure.eligibilityRules.minAge` / `maxAge` | "Edad mínima requerida: 18 años (el solicitante tiene 16)" |
+| Tipo de documento | `procedure.eligibilityRules.requiredDocuments` | "Tipo de documento no válido: Cédula. Se requiere: DNI, NIE" |
+| Nacionalidad permitida | `procedure.eligibilityRules.allowedNationalities` | "Nacionalidad no habilitada para este trámite" |
+| Nacionalidad excluida | `procedure.eligibilityRules.excludedNationalities` | "Nacionalidad excluida de este trámite" |
+| Requisitos del procedimiento | `procedure_requirements` (tipo `field` / `document`) | "Requisito obligatorio no completado: NAF" |
+
+Respuesta:
+```json
+{
+  "validationResult": {
+    "isValid": false,
+    "missingFields": ["naf", "bankAccount"],
+    "errors": ["Campo requerido: NAF", "Edad mínima requerida: 18 años (el solicitante tiene 16)"],
+    "warnings": ["Documento requerido para la cita: DNI original — En vigor"]
+  },
+  "eligibilityResult": {
+    "checked": true,
+    "eligible": false,
+    "errors": ["Edad mínima requerida: 18 años (el solicitante tiene 16)"],
+    "warnings": []
+  }
+}
+```
 
 ### Pagos
 
