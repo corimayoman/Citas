@@ -38,7 +38,7 @@ export default function NotificationsPage() {
         <div>
           <h1 className="text-xl font-semibold">Notificaciones</h1>
           {unreadCount > 0 && (
-            <p className="text-sm text-muted-foreground">{unreadCount} sin leer</p>
+            <p className="text-sm text-[#6b6b8a]">{unreadCount} sin leer</p>
           )}
         </div>
         {unreadCount > 0 && (
@@ -57,16 +57,16 @@ export default function NotificationsPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg border p-4 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-2/3 mb-2" />
-              <div className="h-3 bg-gray-100 rounded w-full" />
+            <div key={i} className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-4 animate-pulse">
+              <div className="h-4 bg-[#1f1f35] rounded w-2/3 mb-2" />
+              <div className="h-3 bg-[#1f1f35]/60 rounded w-full" />
             </div>
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <div className="bg-white rounded-lg border p-12 text-center">
-          <Bell className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">No tienes notificaciones todavía.</p>
+        <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35] p-12 text-center">
+          <Bell className="h-10 w-10 text-[#6b6b8a] mx-auto mb-3" />
+          <p className="text-[#6b6b8a] text-sm">No tienes notificaciones todavía.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -74,14 +74,14 @@ export default function NotificationsPage() {
             <div
               key={n.id}
               className={cn(
-                'bg-white rounded-lg border p-4 transition-colors',
+                'bg-[#0d0d1a] rounded-lg border p-4 transition-colors',
                 !n.readAt && 'border-l-4 border-l-primary'
               )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-muted-foreground">{channelIcon(n.channel)}</span>
+                    <span className="text-[#6b6b8a]">{channelIcon(n.channel)}</span>
                     {n.title && (
                       <p className={cn('text-sm font-medium truncate', !n.readAt && 'text-primary')}>
                         {n.title}
@@ -92,10 +92,10 @@ export default function NotificationsPage() {
                     )}
                   </div>
                   {n.subject && n.subject !== n.title && (
-                    <p className="text-xs text-muted-foreground mb-1">{n.subject}</p>
+                    <p className="text-xs text-[#6b6b8a] mb-1">{n.subject}</p>
                   )}
-                  <p className="text-sm text-muted-foreground whitespace-pre-line line-clamp-3">{n.body}</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                  <p className="text-sm text-[#6b6b8a] whitespace-pre-line line-clamp-3">{n.body}</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-[#6b6b8a]">
                     <span>{formatDate(n.createdAt)}</span>
                     {n.readAt && <span>Leída el {formatDate(n.readAt)}</span>}
                   </div>

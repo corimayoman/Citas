@@ -30,27 +30,27 @@ function VerifyEmailContent() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-xl border p-8 max-w-md w-full text-center space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#080810]">
+      <div className="bg-[#0d0d1a] rounded-xl border border-[#1f1f35] p-8 max-w-md w-full text-center space-y-4">
         {status === 'loading' && (
           <>
             <div className="text-4xl">⏳</div>
-            <p className="text-gray-600">Verificando tu email...</p>
+            <p className="text-[#6b6b8a]">Verificando tu email...</p>
           </>
         )}
         {status === 'success' && (
           <>
             <div className="text-4xl">✅</div>
-            <h1 className="text-xl font-semibold text-gray-900">Email verificado</h1>
-            <p className="text-gray-500 text-sm">Tu cuenta está activa. Redirigiendo al login...</p>
+            <h1 className="text-xl font-semibold text-white">Email verificado</h1>
+            <p className="text-[#6b6b8a] text-sm">Tu cuenta está activa. Redirigiendo al login...</p>
           </>
         )}
         {status === 'error' && (
           <>
             <div className="text-4xl">❌</div>
-            <h1 className="text-xl font-semibold text-gray-900">Error de verificación</h1>
-            <p className="text-gray-500 text-sm">{message}</p>
-            <a href="/login" className="inline-block mt-2 text-sm text-blue-600 hover:underline">
+            <h1 className="text-xl font-semibold text-white">Error de verificación</h1>
+            <p className="text-[#6b6b8a] text-sm">{message}</p>
+            <a href="/login" className="inline-block mt-2 text-sm text-[#FF0A6C] hover:underline">
               Ir al login
             </a>
           </>
@@ -63,7 +63,7 @@ function VerifyEmailContent() {
 export default function VerifyEmailPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#080810]">
         <div className="text-4xl">⏳</div>
       </div>
     }>

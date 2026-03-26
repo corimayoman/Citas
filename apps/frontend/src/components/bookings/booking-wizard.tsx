@@ -87,9 +87,9 @@ export function BookingWizard({ procedure }: WizardProps) {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="bg-white rounded-lg border">
+    <div className="bg-[#0d0d1a] rounded-lg border border-[#1f1f35]">
       {/* Progress */}
-      <div className="p-4 border-b">
+      <div className="p-4 border-b border-[#1f1f35]">
         <div className="flex items-center gap-2">
           {STEPS.map((label, i) => (
             <div key={label} className="flex items-center gap-2">
@@ -112,7 +112,7 @@ export function BookingWizard({ procedure }: WizardProps) {
 
       <div className="p-6">
         {errorMsg && (
-          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700 mb-4">
+          <div className="flex items-start gap-2 bg-red-900/20 border border-red-900/40 rounded-md p-3 text-sm text-red-400 mb-4">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -255,16 +255,16 @@ export function BookingWizard({ procedure }: WizardProps) {
         {step === 3 && (
           <div className="space-y-4">
             <h3 className="font-medium">Revisión del expediente</h3>
-            <div className="bg-muted rounded-md p-4 space-y-2 text-sm">
-              <p><span className="font-medium">Trámite:</span> {procedure.name}</p>
-              <p><span className="font-medium">Organismo:</span> {procedure.organization?.name}</p>
-              {preferredDateFrom && <p><span className="font-medium">Fechas preferidas:</span> {preferredDateFrom} — {preferredDateTo}</p>}
-              {preferredTimeSlot && <p><span className="font-medium">Horario:</span> {preferredTimeSlot === 'morning' ? 'Mañana (antes de las 14:00)' : 'Tarde (después de las 14:00)'}</p>}
+            <div className="bg-[#0d0d1a] rounded-md p-4 space-y-2 text-sm">
+              <p><span className="font-medium text-white">Trámite:</span> {procedure.name}</p>
+              <p><span className="font-medium text-white">Organismo:</span> {procedure.organization?.name}</p>
+              {preferredDateFrom && <p><span className="font-medium text-white">Fechas preferidas:</span> {preferredDateFrom} — {preferredDateTo}</p>}
+              {preferredTimeSlot && <p><span className="font-medium text-white">Horario:</span> {preferredTimeSlot === 'morning' ? 'Mañana (antes de las 14:00)' : 'Tarde (después de las 14:00)'}</p>}
               {Object.entries(formData).map(([k, v]) => (
-                <p key={k}><span className="font-medium capitalize">{k}:</span> {v}</p>
+                <p key={k}><span className="font-medium text-white capitalize">{k}:</span> {v}</p>
               ))}
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-xs text-blue-800">
+            <div className="bg-[#FF0A6C]/10 border border-[#FF0A6C]/20 rounded-md p-3 text-xs text-[#FF3D8A]">
               Al confirmar, vamos a buscar la primera cita disponible dentro de tus preferencias. Cuando la encontremos, te notificamos y podés pagar para confirmarla.
             </div>
             <div className="flex gap-3">
