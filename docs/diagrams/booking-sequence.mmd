@@ -1,0 +1,36 @@
+sequenceDiagram
+    actor U as Usuario
+    participant F as Frontend
+    participant B as Backend
+    participant C as Connector
+    participant S as Stripe
+    participant N as SendGrid
+
+    U->>F: Elige tramite + perfil + fechas
+    F->>B: POST /bookings (DRAFT)
+    B-->>F: booking creado
+
+    U->>F: Click Pagar
+    F->>B: POST /payments/checkout
+    B->>S: Crear sesion Checkout
+    S-->>B: session_id
+    B-->>F: redirect URL
+    F->>S: Redirect a Stripe
+    S-->>F: Pago completado
+    S->>B: Webhook checkout.session.completed
+    B->>B: Booking → SEARCHING
+
+    loop Busqueda automatica
+        B->>C: getAvailability()
+        C-->>B: slot disponible
+    end
+
+    B->>B: Booking → PRE_CONFIRMED
+    B->>N: Email Cita disponible
+    N-->>U: Notificacion
+
+    U->>F: Click Confirmar
+    F->>B: POST /bookings/:id/confirm-payment
+    B->>B: Booking → CONFIRMED
+    B->>N: Email Cita confirmada
+    N-->>U: Detalles del turno

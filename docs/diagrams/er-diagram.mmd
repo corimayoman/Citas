@@ -1,0 +1,57 @@
+erDiagram
+    User ||--o{ RefreshToken : has
+    User ||--o{ ApplicantProfile : has
+    User ||--o{ BookingRequest : creates
+    User ||--o{ Payment : makes
+    User ||--o{ Notification : receives
+    User ||--o{ AuditLog : generates
+
+    ApplicantProfile ||--o{ DocumentFile : attaches
+
+    BookingRequest ||--o{ BookingAttempt : has
+    BookingRequest ||--o| Appointment : resolves_to
+    BookingRequest ||--o| Payment : requires
+    BookingRequest ||--o{ DocumentFile : attaches
+
+    Payment ||--o| Invoice : generates
+
+    Organization ||--o{ Procedure : offers
+    Organization ||--o{ Connector : has
+
+    Procedure ||--o{ ProcedureRequirement : defines
+
+    Connector ||--o{ ConnectorCapability : has
+    Connector ||--o{ ComplianceReview : reviewed_by
+
+    User {
+        uuid id PK
+        string email UK
+        enum role
+        enum notificationChannel
+        boolean mfaEnabled
+        boolean consentGiven
+    }
+
+    BookingRequest {
+        uuid id PK
+        enum status
+        json formData
+        datetime preferredDateFrom
+        datetime preferredDateTo
+        string externalRef
+    }
+
+    Payment {
+        uuid id PK
+        enum status
+        decimal amount
+        string currency
+        string stripeSessionId
+    }
+
+    Connector {
+        uuid id PK
+        string name
+        enum integrationType
+        boolean isActive
+    }
