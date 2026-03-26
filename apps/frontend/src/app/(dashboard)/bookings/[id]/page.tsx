@@ -41,7 +41,7 @@ function PreConfirmedPayment({ bookingId, procedure, paymentDeadline }: { bookin
           {procedure?.serviceFee ? `${procedure.serviceFee} ${procedure.currency}` : 'Gratuito'}
         </span>
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-600">{error}</p>}
       <Button onClick={() => checkout.mutate()} disabled={checkout.isPending} className="w-full">
         {checkout.isPending ? 'Procesando...' : isDemoMode ? 'Pagar y confirmar cita (Demo)' : 'Pagar con Stripe'}
       </Button>
@@ -68,14 +68,14 @@ function RetryExecution({ bookingId }: { bookingId: string }) {
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   DRAFT:                { label: 'Borrador',          color: 'bg-secondary text-muted-foreground',        icon: FileText },
-  SEARCHING:            { label: 'Buscando cita',     color: 'bg-blue-900/30 text-blue-400',        icon: Search },
+  SEARCHING:            { label: 'Buscando cita',     color: 'bg-blue-100 text-blue-700',        icon: Search },
   PRE_CONFIRMED:        { label: 'Cita disponible',   color: 'bg-primary/10 text-primary-light',     icon: Bell },
   PENDING_PAYMENT:      { label: 'Pendiente de pago', color: 'bg-primary/10 text-primary-light',     icon: CreditCard },
-  PAID:                 { label: 'Pagado',            color: 'bg-blue-900/30 text-blue-400',        icon: CreditCard },
-  IN_PROGRESS:          { label: 'En gestión',        color: 'bg-blue-900/30 text-blue-400',        icon: Clock },
-  CONFIRMED:            { label: 'Confirmado',        color: 'bg-emerald-900/30 text-emerald-400',  icon: CheckCircle },
-  COMPLETED:            { label: 'Completado',        color: 'bg-emerald-900/30 text-emerald-400',  icon: CheckCircle },
-  ERROR:                { label: 'Error',             color: 'bg-red-900/30 text-red-400',          icon: XCircle },
+  PAID:                 { label: 'Pagado',            color: 'bg-blue-100 text-blue-700',        icon: CreditCard },
+  IN_PROGRESS:          { label: 'En gestión',        color: 'bg-blue-100 text-blue-700',        icon: Clock },
+  CONFIRMED:            { label: 'Confirmado',        color: 'bg-emerald-100 text-emerald-700',  icon: CheckCircle },
+  COMPLETED:            { label: 'Completado',        color: 'bg-emerald-100 text-emerald-700',  icon: CheckCircle },
+  ERROR:                { label: 'Error',             color: 'bg-red-100 text-red-700',          icon: XCircle },
   REQUIRES_USER_ACTION: { label: 'Requiere acción',   color: 'bg-primary/10 text-primary-light',     icon: AlertCircle },
   CANCELLED:            { label: 'Cancelado',         color: 'bg-secondary text-muted-foreground',        icon: XCircle },
   EXPIRED:              { label: 'Expirado',          color: 'bg-secondary text-muted-foreground',        icon: XCircle },
@@ -188,8 +188,8 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
       )}
 
       {booking.status === 'SEARCHING' && (
-        <div className="bg-blue-900/20 border border-blue-900/40 rounded-lg p-5 flex items-start gap-3">
-          <Search className="h-4 w-4 text-blue-400 mt-0.5 shrink-0 animate-pulse" />
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 flex items-start gap-3">
+          <Search className="h-4 w-4 text-blue-600 mt-0.5 shrink-0 animate-pulse" />
           <div>
             <p className="text-sm font-medium text-foreground">Buscando cita disponible</p>
             <p className="text-xs text-muted-foreground mt-1">Estamos buscando la primera cita disponible. Esta página se actualiza automáticamente.</p>
