@@ -13,10 +13,10 @@ export function Header() {
   };
 
   return (
-    <header className="bg-[#080810] border-b border-[#1f1f35] px-6 py-3 flex items-center justify-end gap-3">
-      <span className="text-sm text-[#6b6b8a]">{user?.email}</span>
-      <span className="text-[11px] text-[#3a3a5c] border border-[#1f1f35] px-2 py-0.5 rounded-full">{user?.role}</span>
-      <button onClick={handleLogout} className="text-[#3a3a5c] hover:text-[#FF0A6C] transition-colors ml-1" aria-label="Cerrar sesión">
+    <header className="bg-background border-b border-border px-6 py-3 flex items-center justify-end gap-3">
+      <span className="text-sm text-muted-foreground">{user?.email}</span>
+      <span className="text-[11px] text-muted-foreground border border-border px-2 py-0.5 rounded-full">{user?.role}</span>
+      <button onClick={handleLogout} className="text-muted-foreground hover:text-primary transition-colors ml-1" aria-label="Cerrar sesión">
         <LogOut className="h-4 w-4" />
       </button>
     </header>
