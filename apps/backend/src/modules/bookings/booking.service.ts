@@ -49,14 +49,95 @@ export const bookingService = {
   async validateBooking(bookingId: string, userId: string) {
     const booking = await prisma.bookingRequest.findFirst({
       where: { id: bookingId, userId },
-      include: { procedure: { include: { requirements: true, connector: true } } },
+      include: {
+        procedure: { include: { requirements: true, connector: true } },
+        applicantProfile: true,
+      },
     });
     if (!booking) throw new AppError(404, 'Reserva no encontrada', 'BOOKING_NOT_FOUND');
 
-    const validationResult = { isValid: true, missingFields: [] as string[], warnings: [] as string[] };
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const missingFields: string[] = [];
+    const profile = booking.applicantProfile;
+    const procedure = booking.procedure;
+    const formData = (booking.formData ?? {}) as Record<string, unknown>;
+    const rules = (procedure.eligibilityRules ?? {}) as Record<string, unknown>;
+
+    // 1. Validate required form fields against formSchema
+    const formSchema = (procedure.formSchema as { fields?: Array<{ name: string; label: string; required?: boolean }> }) ?? {};
+    for (const field of formSchema.fields ?? []) {
+      if (field.required && !formData[field.name]) {
+        missingFields.push(field.name);
+        errors.push(`Campo requerido: ${field.label}`);
+      }
+    }
+
+    // 2. Validate eligibilityRules against applicant profile
+    if (rules.minAge && profile.birthDate) {
+      const age = Math.floor((Date.now() - new Date(profile.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      if (age < (rules.minAge as number)) {
+        errors.push(`Edad mínima requerida: ${rules.minAge} años (el solicitante tiene ${age})`);
+      }
+    }
+
+    if (rules.maxAge && profile.birthDate) {
+      const age = Math.floor((Date.now() - new Date(profile.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      if (age > (rules.maxAge as number)) {
+        errors.push(`Edad máxima permitida: ${rules.maxAge} años (el solicitante tiene ${age})`);
+      }
+    }
+
+    if (Array.isArray(rules.requiredDocuments) && rules.requiredDocuments.length > 0) {
+      const docType = profile.documentType?.toUpperCase();
+      const allowed = (rules.requiredDocuments as string[]).map(d => d.toUpperCase());
+      if (!allowed.includes(docType)) {
+        errors.push(`Tipo de documento no válido: ${profile.documentType}. Se requiere: ${(rules.requiredDocuments as string[]).join(', ')}`);
+      }
+    }
+
+    if (Array.isArray(rules.allowedNationalities) && rules.allowedNationalities.length > 0) {
+      const nat = profile.nationality?.toUpperCase();
+      const allowed = (rules.allowedNationalities as string[]).map(n => n.toUpperCase());
+      if (!allowed.includes(nat)) {
+        errors.push(`Nacionalidad no habilitada para este trámite: ${profile.nationality}`);
+      }
+    }
+
+    if (Array.isArray(rules.excludedNationalities)) {
+      const nat = profile.nationality?.toUpperCase();
+      const excluded = (rules.excludedNationalities as string[]).map(n => n.toUpperCase());
+      if (excluded.includes(nat)) {
+        errors.push(`Nacionalidad excluida de este trámite: ${profile.nationality}`);
+      }
+    }
+
+    // 3. Validate ProcedureRequirements
+    for (const req of procedure.requirements) {
+      if (!req.isRequired) {
+        warnings.push(`Documento opcional: ${req.name}${req.description ? ` — ${req.description}` : ''}`);
+        continue;
+      }
+      // For 'field' type requirements, check formData
+      if (req.type === 'field') {
+        const fieldName = req.name.toLowerCase().replace(/\s+/g, '_');
+        if (!formData[fieldName] && !formData[req.name]) {
+          errors.push(`Requisito obligatorio no completado: ${req.name}`);
+        }
+      }
+      // For 'document' type, we note it as required (actual file upload validation is separate)
+      if (req.type === 'document') {
+        warnings.push(`Documento requerido para la cita: ${req.name}${req.description ? ` — ${req.description}` : ''}`);
+      }
+    }
+
+    const isEligible = errors.length === 0;
+    const validationResult = { isValid: isEligible && missingFields.length === 0, missingFields, errors, warnings };
+    const eligibilityResult = { checked: true, eligible: isEligible, errors, warnings };
+
     return prisma.bookingRequest.update({
       where: { id: bookingId },
-      data: { validationResult, eligibilityResult: { checked: true, eligible: true } },
+      data: { validationResult, eligibilityResult },
     });
   },
 
