@@ -1,0 +1,16 @@
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> SEARCHING : pagar
+    SEARCHING --> PRE_CONFIRMED : cita encontrada
+    PRE_CONFIRMED --> CONFIRMED : confirmar
+    PRE_CONFIRMED --> EXPIRED : deadline vencido
+    CONFIRMED --> COMPLETED : turno realizado
+    SEARCHING --> REQUIRES_USER_ACTION : modo asistido
+
+    DRAFT --> CANCELLED
+    SEARCHING --> CANCELLED
+    PRE_CONFIRMED --> CANCELLED
+    CONFIRMED --> CANCELLED
+    SEARCHING --> ERROR
+    CONFIRMED --> REFUNDED
+    CANCELLED --> REFUNDED

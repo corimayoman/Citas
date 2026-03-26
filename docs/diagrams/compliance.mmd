@@ -1,0 +1,14 @@
+flowchart TD
+    Start([Revision de compliance]) --> CaptchaCheck{Requiere bypass CAPTCHA?}
+    CaptchaCheck -->|Si| BLOCKED[MANUAL_ASSISTED - CRITICAL]
+    CaptchaCheck -->|No| AntiBotCheck{Requiere evasion anti-bot?}
+    AntiBotCheck -->|Si| BLOCKED
+    AntiBotCheck -->|No| RateLimitCheck{Requiere evasion rate limit?}
+    RateLimitCheck -->|Si| BLOCKED
+    RateLimitCheck -->|No| AuthBypassCheck{Requiere bypass auth?}
+    AuthBypassCheck -->|Si| BLOCKED
+    AuthBypassCheck -->|No| ApiCheck{Tiene API oficial + docs + ToS?}
+    ApiCheck -->|Si| OFFICIAL[OFFICIAL_API - Riesgo LOW]
+    ApiCheck -->|No| AuthIntCheck{Integracion autorizada + ToS?}
+    AuthIntCheck -->|Si| AUTHORIZED[AUTHORIZED_INTEGRATION - Riesgo MEDIUM]
+    AuthIntCheck -->|No| MANUAL[MANUAL_ASSISTED - Riesgo HIGH]

@@ -1,0 +1,6 @@
+stateDiagram-v2
+    [*] --> PENDING : checkout creado
+    PENDING --> PAID : Stripe confirma
+    PENDING --> FAILED : rechazado / expirado
+    PAID --> REFUNDED : reembolso completo
+    PAID --> PARTIALLY_REFUNDED : reembolso parcial

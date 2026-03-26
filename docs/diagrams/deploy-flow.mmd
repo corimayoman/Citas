@@ -1,0 +1,5 @@
+graph LR
+  F[feature/xxx] -->|gw promote qa| QA[qa]
+  QA -->|gw promote prod| M[main]
+  QA -->|auto-deploy| RQA[Railway QA]
+  M -->|auto-deploy| RP[Railway Prod]

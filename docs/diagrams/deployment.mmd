@@ -1,0 +1,36 @@
+graph LR
+  subgraph GitHub
+    qa[branch: qa]
+    main[branch: main]
+  end
+
+  subgraph RailwayQA[Railway QA]
+    BQA[Backend QA]
+    FQA[Frontend QA]
+    PQA[(Postgres)]
+    RQA[(Redis)]
+  end
+
+  subgraph RailwayProd[Railway Production]
+    BP[Backend Prod]
+    FP[Frontend Prod]
+    PP[(Postgres)]
+    RP[(Redis)]
+  end
+
+  qa -->|push| BQA & FQA
+  BQA --- PQA & RQA
+  main -->|push| BP & FP
+  BP --- PP & RP
+
+  subgraph External[Servicios externos]
+    SG[SendGrid]
+    TW[Twilio]
+    ST[Stripe]
+  end
+
+  BQA -.->|email| SG
+  BQA -.->|sms| TW
+  BQA -.->|pagos| ST
+  BP -.->|email| SG
+  BP -.->|pagos| ST
