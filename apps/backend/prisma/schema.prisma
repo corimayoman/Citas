@@ -252,6 +252,11 @@ model Connector {
   legalBasis          String?
   termsOfServiceUrl   String?
   lastComplianceCheck DateTime?
+  lastHealthCheck     DateTime?       // last successful health check
+  errorRate           Float?          @default(0) // recent error rate
+  avgResponseTimeMs   Int?            // average response time in ms
+  suspendedReason     String?         // reason for suspension (CAPTCHA_DETECTED, STRUCTURE_CHANGED, etc.)
+  suspendedAt         DateTime?       // when the connector was suspended
   notes               String?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
@@ -316,18 +321,21 @@ model BookingRequest {
   preferredDateTo    DateTime?  // user preference: search until
   preferredTimeSlot  String?    // "morning" | "afternoon"
   paymentDeadline    DateTime?  // 24h before appointment
+  maxSearchAttempts  Int?          // max search attempts before giving up
+  searchJobId        String?       // BullMQ job ID for tracking
   externalRef        String?       // reference from the official portal
   completedAt        DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  user             User             @relation(fields: [userId], references: [id])
-  applicantProfile ApplicantProfile @relation(fields: [applicantProfileId], references: [id])
-  procedure        Procedure        @relation(fields: [procedureId], references: [id])
-  bookingAttempts  BookingAttempt[]
-  appointment      Appointment?
-  payment          Payment?
-  documentFiles    DocumentFile[]
+  user              User              @relation(fields: [userId], references: [id])
+  applicantProfile  ApplicantProfile  @relation(fields: [applicantProfileId], references: [id])
+  procedure         Procedure         @relation(fields: [procedureId], references: [id])
+  bookingAttempts   BookingAttempt[]
+  appointment       Appointment?
+  payment           Payment?
+  documentFiles     DocumentFile[]
+  interceptedEmails InterceptedEmail[]
 
   @@map("booking_requests")
 }
@@ -340,6 +348,8 @@ model BookingAttempt {
   success          Boolean  @default(false)
   response         Json?
   errorMessage     String?
+  responseTimeMs   Int?     // portal response time in ms
+  httpStatusCode   Int?     // HTTP status code from portal
   attemptedAt      DateTime @default(now())
 
   bookingRequest BookingRequest @relation(fields: [bookingRequestId], references: [id])
@@ -365,6 +375,25 @@ model Appointment {
   bookingRequest BookingRequest @relation(fields: [bookingRequestId], references: [id])
 
   @@map("appointments")
+}
+
+// ─── INTERCEPTED EMAILS ───────────────────────────────────────────────────
+
+model InterceptedEmail {
+  id                String    @id @default(uuid())
+  bookingRequestId  String?
+  fromAddress       String
+  subject           String
+  rawBody           String    @db.Text
+  parsedData        Json?
+  portalOrigin      String
+  correlationStatus String    @default("PENDING") // PENDING, MATCHED, UNMATCHED
+  processedAt       DateTime?
+  createdAt         DateTime  @default(now())
+
+  bookingRequest BookingRequest? @relation(fields: [bookingRequestId], references: [id])
+
+  @@map("intercepted_emails")
 }
 
 // ─── PAYMENTS ─────────────────────────────────────────────────────────────────
