@@ -26,8 +26,8 @@ import complianceRoutes from './modules/compliance/compliance.routes';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Trust all proxies (Railway uses multiple proxy layers)
-app.set('trust proxy', true);
+// Trust first proxy hop (Railway reverse proxy)
+app.set('trust proxy', 1);
 
 // ─── Security middleware ──────────────────────────────────────────────────────
 app.use(helmet());
@@ -89,8 +89,18 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/compliance', complianceRoutes);
 
 // ─── Health check ─────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (_req, res) => {
+  const { checkEnvironmentVariables } = await import('./lib/env-check');
+  const envCheck = checkEnvironmentVariables();
+  res.json({
+    status: envCheck.ok ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    env: {
+      ok: envCheck.ok,
+      missingRequired: envCheck.missing.length,
+      missingOptional: envCheck.warnings.length,
+    },
+  });
 });
 
 // ─── Error handler ────────────────────────────────────────────────────────────
@@ -99,6 +109,14 @@ app.use(errorHandler);
 // ─── Start ────────────────────────────────────────────────────────────────────
 async function bootstrap() {
   try {
+    // Validate environment variables before anything else
+    const { checkEnvironmentVariables } = await import('./lib/env-check');
+    const envCheck = checkEnvironmentVariables();
+    if (!envCheck.ok) {
+      logger.error('Server cannot start — missing required environment variables. See errors above.');
+      process.exit(1);
+    }
+
     await prisma.$connect();
     logger.info('Database connected');
 
