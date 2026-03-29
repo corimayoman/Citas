@@ -61,7 +61,15 @@ export const paymentService = {
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(payload, signature, process.env.STRIPE_WEBHOOK_SECRET!);
-    } catch {
+    } catch (err) {
+      console.error('[WEBHOOK DEBUG] constructEvent failed:', {
+        error: err instanceof Error ? err.message : String(err),
+        signatureHeader: signature?.substring(0, 30) + '...',
+        payloadType: typeof payload,
+        payloadIsBuffer: Buffer.isBuffer(payload),
+        payloadLength: payload?.length,
+        secretPrefix: process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 10) + '...',
+      });
       throw new AppError(400, 'Webhook signature inválida', 'INVALID_WEBHOOK');
     }
 
