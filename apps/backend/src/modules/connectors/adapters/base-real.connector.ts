@@ -1,0 +1,161 @@
+/**
+ * BaseRealConnector — abstract base class for all real portal connectors.
+ *
+ * Encapsulates common concerns:
+ *   • HTTP client (Axios) with configurable baseURL, timeout, and User-Agent
+ *   • Rate limiting via RateLimiter (token-bucket in Redis)
+ *   • Anomaly detection (CAPTCHA / structure changes) that throws CircuitBreakerError
+ *
+ * Subclasses (Extranjería, DGT, AEAT, …) only implement the portal-specific
+ * abstract methods: fetching pages, parsing HTML, and submitting forms.
+ */
+
+import axios from 'axios';
+import type { AxiosInstance } from 'axios';
+import {
+  IConnector,
+  ConnectorMetadata,
+  TimeSlot,
+  BookingResult,
+} from '../connector.interface';
+import { RateLimiter } from '../rate-limiter';
+import { logger } from '../../../lib/logger';
+
+// ── Config ───────────────────────────────────────────────────────────────────
+
+export interface RealConnectorConfig {
+  /** Slug used for rate-limiter keys and logging */
+  connectorSlug: string;
+  /** Base URL of the government portal (must be HTTPS) */
+  baseUrl: string;
+  /** HTTP request timeout in milliseconds (default: 30 000) */
+  timeoutMs?: number;
+  /** Max requests per minute allowed by the portal */
+  rateLimit: number;
+}
+
+// ── CircuitBreakerError ──────────────────────────────────────────────────────
+
+export type CircuitBreakerReason = 'CAPTCHA_DETECTED' | 'STRUCTURE_CHANGED';
+
+export class CircuitBreakerError extends Error {
+  readonly reason: CircuitBreakerReason;
+
+  constructor(message: string, reason: CircuitBreakerReason) {
+    super(message);
+    this.name = 'CircuitBreakerError';
+    this.reason = reason;
+  }
+}
+
+// ── BaseRealConnector ────────────────────────────────────────────────────────
+
+export abstract class BaseRealConnector implements IConnector {
+  abstract readonly metadata: ConnectorMetadata;
+
+  protected readonly httpClient: AxiosInstance;
+  protected readonly rateLimiter: RateLimiter;
+
+  constructor(protected readonly config: RealConnectorConfig) {
+    this.httpClient = axios.create({
+      baseURL: config.baseUrl,
+      timeout: config.timeoutMs ?? 30_000,
+      headers: { 'User-Agent': 'GestorCitas/1.0' },
+    });
+
+    this.rateLimiter = new RateLimiter(
+      config.connectorSlug,
+      config.rateLimit,
+    );
+  }
+
+  // ── Concrete IConnector methods ──────────────────────────────────────────
+
+  async healthCheck(): Promise<boolean> {
+    await this.rateLimiter.acquire();
+    try {
+      const res = await this.httpClient.get(this.getHealthEndpoint());
+      return res.status === 200;
+    } catch (err) {
+      logger.warn(
+        `BaseRealConnector(${this.config.connectorSlug}): healthCheck failed`,
+        err,
+      );
+      return false;
+    }
+  }
+
+  async getAvailability(
+    procedureId: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<TimeSlot[]> {
+    await this.rateLimiter.acquire();
+    const raw = await this.fetchAvailabilityPage(procedureId, fromDate, toDate);
+    this.detectAnomalies(raw);
+    return this.parseAvailability(raw);
+  }
+
+  async book(bookingData: Record<string, unknown>): Promise<BookingResult> {
+    await this.rateLimiter.acquire();
+    const raw = await this.submitBookingForm(bookingData);
+    this.detectAnomalies(raw);
+    return this.parseBookingResult(raw);
+  }
+
+  async cancel(confirmationCode: string): Promise<boolean> {
+    await this.rateLimiter.acquire();
+    return this.submitCancellation(confirmationCode);
+  }
+
+  // ── Anomaly detection ────────────────────────────────────────────────────
+
+  protected detectAnomalies(response: unknown): void {
+    if (this.hasCaptcha(response)) {
+      throw new CircuitBreakerError(
+        'CAPTCHA detectado en el portal',
+        'CAPTCHA_DETECTED',
+      );
+    }
+    if (!this.hasExpectedStructure(response)) {
+      throw new CircuitBreakerError(
+        'Estructura del portal cambió inesperadamente',
+        'STRUCTURE_CHANGED',
+      );
+    }
+  }
+
+  // ── Abstract methods — subclasses must implement ─────────────────────────
+
+  /** URL path used by healthCheck (e.g. "/" or "/cita-previa") */
+  protected abstract getHealthEndpoint(): string;
+
+  /** Raw HTTP call to fetch the availability page from the portal */
+  protected abstract fetchAvailabilityPage(
+    procedureId: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<unknown>;
+
+  /** Parse the raw portal response into normalised TimeSlot[] */
+  protected abstract parseAvailability(rawResponse: unknown): TimeSlot[];
+
+  /** Raw HTTP call to submit the booking form to the portal */
+  protected abstract submitBookingForm(
+    data: Record<string, unknown>,
+  ): Promise<unknown>;
+
+  /** Parse the raw portal response into a BookingResult */
+  protected abstract parseBookingResult(rawResponse: unknown): BookingResult;
+
+  /** Submit a cancellation request to the portal */
+  protected abstract submitCancellation(
+    confirmationCode: string,
+  ): Promise<boolean>;
+
+  /** Return true if the portal response contains a CAPTCHA challenge */
+  protected abstract hasCaptcha(response: unknown): boolean;
+
+  /** Return true if the portal response has the expected HTML structure */
+  protected abstract hasExpectedStructure(response: unknown): boolean;
+}
