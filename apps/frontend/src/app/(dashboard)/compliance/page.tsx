@@ -12,9 +12,9 @@ export default function CompliancePage() {
   const connectors: any[] = Array.isArray(data) ? data : [];
 
   const levelColor: Record<string, string> = {
-    HIGH: 'bg-emerald-100 text-emerald-700',
+    HIGH: 'bg-emerald-900/30 text-emerald-400',
     MEDIUM: 'bg-primary/10 text-primary-light',
-    LOW: 'bg-red-100 text-red-700',
+    LOW: 'bg-red-900/30 text-red-400',
   };
 
   return (
@@ -43,8 +43,8 @@ export default function CompliancePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {c.status === 'ACTIVE'
-                      ? <CheckCircle className="h-4 w-4 text-emerald-600" />
-                      : <XCircle className="h-4 w-4 text-red-600" />}
+                      ? <CheckCircle className="h-4 w-4 text-emerald-400" />
+                      : <XCircle className="h-4 w-4 text-red-400" />}
                     <p className="text-sm font-medium text-foreground">{c.name}</p>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${levelColor[c.complianceLevel] || 'bg-secondary text-muted-foreground'}`}>

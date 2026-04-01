@@ -29,7 +29,7 @@ const PROCEDURE_CATEGORIES = [
     icon: '💼',
     name: 'Empleo',
     color: 'bg-card border-border',
-    iconBg: 'bg-blue-100 text-blue-700',
+    iconBg: 'bg-blue-900/30 text-blue-400',
     procedures: [
       { name: 'Prestación por desempleo (SEPE)', fee: '19,99 €', time: '45 min', mode: 'manual' },
       { name: 'Alta en demanda de empleo', fee: '9,99 €', time: '20 min', mode: 'manual' },
@@ -40,7 +40,7 @@ const PROCEDURE_CATEGORIES = [
     icon: '🚗',
     name: 'Tráfico y vehículos',
     color: 'bg-card border-border',
-    iconBg: 'bg-orange-100 text-orange-700',
+    iconBg: 'bg-orange-900/30 text-orange-400',
     procedures: [
       { name: 'Canje de permiso de conducir extranjero', fee: '24,99 €', time: '60 min', mode: 'manual' },
       { name: 'Renovación del carnet de conducir', fee: '14,99 €', time: '30 min', mode: 'manual' },
@@ -51,7 +51,7 @@ const PROCEDURE_CATEGORIES = [
     icon: '🌍',
     name: 'Extranjería',
     color: 'bg-card border-border',
-    iconBg: 'bg-emerald-100 text-emerald-700',
+    iconBg: 'bg-emerald-900/30 text-emerald-400',
     procedures: [
       { name: 'Renovación de NIE / TIE', fee: '24,99 €', time: '60 min', mode: 'manual' },
       { name: 'Solicitud de residencia', fee: '29,99 €', time: '90 min', mode: 'manual' },
@@ -62,7 +62,7 @@ const PROCEDURE_CATEGORIES = [
     icon: '🏛️',
     name: 'Administración general',
     color: 'bg-card border-border',
-    iconBg: 'bg-purple-100 text-purple-700',
+    iconBg: 'bg-purple-900/30 text-purple-400',
     procedures: [
       { name: 'Certificado de empadronamiento', fee: '9,99 €', time: '15 min', mode: 'api' },
       { name: 'Cita en Registro Civil', fee: '14,99 €', time: '30 min', mode: 'manual' },
@@ -73,7 +73,7 @@ const PROCEDURE_CATEGORIES = [
     icon: '🏥',
     name: 'Sanidad',
     color: 'bg-card border-border',
-    iconBg: 'bg-red-100 text-red-700',
+    iconBg: 'bg-red-900/30 text-red-400',
     procedures: [
       { name: 'Tarjeta sanitaria individual', fee: '9,99 €', time: '20 min', mode: 'manual' },
       { name: 'Cita médico de cabecera', fee: '9,99 €', time: '15 min', mode: 'api' },
@@ -84,7 +84,7 @@ const PROCEDURE_CATEGORIES = [
     icon: '🎓',
     name: 'Educación',
     color: 'bg-card border-border',
-    iconBg: 'bg-yellow-100 text-yellow-700',
+    iconBg: 'bg-yellow-900/30 text-yellow-400',
     procedures: [
       { name: 'Homologación de títulos extranjeros', fee: '24,99 €', time: '60 min', mode: 'manual' },
       { name: 'Matrícula universitaria pública', fee: '14,99 €', time: '30 min', mode: 'manual' },
@@ -149,7 +149,7 @@ function SectionHeading({ eyebrow, title, subtitle }: { eyebrow: string; title: 
 
 function ModeChip({ mode }: { mode: string }) {
   if (mode === 'api') return (
-    <span className="inline-flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+    <span className="inline-flex items-center gap-1 text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded-full font-medium">
       <Zap className="h-3 w-3" /> Automático
     </span>
   );
@@ -187,7 +187,7 @@ const FLOW_STEPS = [
     icon: Search,
     title: 'Elige tu trámite',
     description: 'Busca por organismo, categoría o nombre. Cada trámite muestra el coste, tiempo estimado y modo de integración.',
-    color: 'bg-blue-50 border-blue-200 text-blue-600',
+    color: 'bg-blue-900/20 border-blue-900/40 text-blue-400',
     dot: 'bg-blue-500',
   },
   {
@@ -195,7 +195,7 @@ const FLOW_STEPS = [
     icon: Users,
     title: 'Selecciona el solicitante',
     description: 'Elige un perfil guardado o crea uno nuevo. Puedes gestionar citas para ti, familiares o terceros.',
-    color: 'bg-indigo-50 border-indigo-200 text-indigo-600',
+    color: 'bg-indigo-900/20 border-indigo-900/40 text-indigo-400',
     dot: 'bg-indigo-500',
   },
   {
@@ -203,7 +203,7 @@ const FLOW_STEPS = [
     icon: Calendar,
     title: 'Indica tus preferencias de fecha',
     description: 'Selecciona un rango de fechas y si prefieres cita de mañana (antes de las 14:00) o tarde (después de las 14:00).',
-    color: 'bg-violet-50 border-violet-200 text-violet-600',
+    color: 'bg-violet-900/20 border-violet-900/40 text-violet-400',
     dot: 'bg-violet-500',
   },
   {
@@ -211,7 +211,7 @@ const FLOW_STEPS = [
     icon: CreditCard,
     title: 'Paga el servicio',
     description: 'Pago seguro con Stripe. Una vez confirmado, iniciamos la búsqueda de cita en segundo plano. Recibes factura inmediatamente.',
-    color: 'bg-purple-50 border-purple-200 text-purple-600',
+    color: 'bg-purple-900/20 border-purple-900/40 text-purple-400',
     dot: 'bg-purple-500',
   },
   {
@@ -219,7 +219,7 @@ const FLOW_STEPS = [
     icon: Bell,
     title: 'Te notificamos cuando encontramos cita',
     description: 'El sistema busca la primera disponibilidad dentro de tus preferencias. Cuando la encuentra, te notifica y el expediente pasa a "Cita encontrada".',
-    color: 'bg-amber-50 border-amber-200 text-amber-600',
+    color: 'bg-amber-900/20 border-amber-900/40 text-amber-400',
     dot: 'bg-amber-500',
   },
   {
@@ -227,7 +227,7 @@ const FLOW_STEPS = [
     icon: CheckCircle,
     title: 'Confirma para ver los detalles',
     description: 'Tienes hasta 24 horas antes de la cita para confirmar. Al confirmar, recibes todos los detalles (fecha, hora, lugar, código) por notificación.',
-    color: 'bg-emerald-50 border-emerald-200 text-emerald-600',
+    color: 'bg-emerald-900/20 border-emerald-900/40 text-emerald-400',
     dot: 'bg-emerald-500',
   },
 ];
@@ -349,12 +349,12 @@ export default function GuidePage() {
           <SectionAnchor id="integration-modes" />
           <SectionHeading eyebrow="Integración" title="Modos de integración" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+            <div className="bg-emerald-900/20 border border-emerald-900/40 rounded-lg p-6">
               <div className="flex items-center gap-2 mb-3">
-                <Zap className="h-5 w-5 text-emerald-600" />
-                <p className="font-semibold text-emerald-700">Automático (API)</p>
+                <Zap className="h-5 w-5 text-emerald-400" />
+                <p className="font-semibold text-emerald-300">Automático (API)</p>
               </div>
-              <p className="text-sm text-emerald-600/80">El organismo dispone de una API oficial. La reserva se completa sin intervención manual. Recibes confirmación y código de cita al instante.</p>
+              <p className="text-sm text-emerald-400/80">El organismo dispone de una API oficial. La reserva se completa sin intervención manual. Recibes confirmación y código de cita al instante.</p>
             </div>
             <div className="bg-card border border-border rounded-lg p-6">
               <div className="flex items-center gap-2 mb-3">

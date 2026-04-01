@@ -57,7 +57,7 @@ export default function AdminPage() {
                   <p className="font-medium text-foreground">{u.email}</p>
                   <p className="text-xs text-muted-foreground">{u.role} · {u.isEmailVerified ? 'Verificado' : 'Sin verificar'}</p>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${u.isActive !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary text-muted-foreground'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${u.isActive !== false ? 'bg-emerald-900/30 text-emerald-400' : 'bg-secondary text-muted-foreground'}`}>
                   {u.isActive !== false ? 'Activo' : 'Inactivo'}
                 </span>
               </div>

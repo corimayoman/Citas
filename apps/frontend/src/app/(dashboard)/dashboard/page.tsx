@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 const statusLabels: Record<string, { label: string; color: string }> = {
   DRAFT: { label: 'Borrador', color: 'bg-secondary text-muted-foreground' },
   PENDING_PAYMENT: { label: 'Pendiente de pago', color: 'bg-primary/10 text-primary-light' },
-  PAID: { label: 'Pagado', color: 'bg-blue-100 text-blue-700' },
-  IN_PROGRESS: { label: 'En gestión', color: 'bg-blue-100 text-blue-700' },
-  COMPLETED: { label: 'Completado', color: 'bg-emerald-100 text-emerald-700' },
-  ERROR: { label: 'Error', color: 'bg-red-100 text-red-700' },
+  PAID: { label: 'Pagado', color: 'bg-blue-900/30 text-blue-400' },
+  IN_PROGRESS: { label: 'En gestión', color: 'bg-blue-900/30 text-blue-400' },
+  COMPLETED: { label: 'Completado', color: 'bg-emerald-900/30 text-emerald-400' },
+  ERROR: { label: 'Error', color: 'bg-red-900/30 text-red-400' },
   REQUIRES_USER_ACTION: { label: 'Requiere acción', color: 'bg-primary/10 text-primary-light' },
   CANCELLED: { label: 'Cancelado', color: 'bg-secondary text-muted-foreground' },
 };
@@ -44,9 +44,9 @@ export default function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total expedientes', value: stats.total, icon: FileText, color: 'text-blue-600' },
-          { label: 'Completados', value: stats.completed, icon: Calendar, color: 'text-emerald-600' },
-          { label: 'En gestión', value: stats.inProgress, icon: Clock, color: 'text-blue-600' },
+          { label: 'Total expedientes', value: stats.total, icon: FileText, color: 'text-blue-400' },
+          { label: 'Completados', value: stats.completed, icon: Calendar, color: 'text-emerald-400' },
+          { label: 'En gestión', value: stats.inProgress, icon: Clock, color: 'text-blue-400' },
           { label: 'Requieren acción', value: stats.pending, icon: CreditCard, color: 'text-primary-light' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-card rounded-lg border border-border p-4">
