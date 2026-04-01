@@ -291,6 +291,16 @@ export const bookingService = {
       },
     });
 
+    // Audit: SEARCHING → PRE_CONFIRMED
+    await auditService.log({
+      userId: booking.userId,
+      action: 'UPDATE',
+      entityType: 'BookingRequest',
+      entityId: booking.id,
+      before: { status: 'SEARCHING' },
+      after: { status: 'PRE_CONFIRMED', selectedDate: appointmentDate.toISOString(), selectedTime: slot.appointmentTime, externalRef: slot.confirmationCode },
+    });
+
     // Guardar cita internamente (oculta hasta que pague)
     const existing = await prisma.appointment.findUnique({ where: { bookingRequestId: booking.id } });
     if (!existing) {
@@ -339,6 +349,16 @@ export const bookingService = {
     await prisma.bookingRequest.update({
       where: { id: bookingId },
       data: { status: 'CONFIRMED', completedAt: new Date() },
+    });
+
+    // Audit: PRE_CONFIRMED → CONFIRMED
+    await auditService.log({
+      userId,
+      action: 'UPDATE',
+      entityType: 'BookingRequest',
+      entityId: bookingId,
+      before: { status: 'PRE_CONFIRMED' },
+      after: { status: 'CONFIRMED' },
     });
 
     const appt = booking.appointment;
@@ -458,6 +478,15 @@ export const bookingService = {
       },
     });
     if (!booking) throw new AppError(404, 'Reserva no encontrada', 'BOOKING_NOT_FOUND');
+
+    // Audit: personal data access (READ)
+    await auditService.log({
+      userId,
+      action: 'READ',
+      entityType: 'BookingRequest',
+      entityId: bookingId,
+      metadata: { accessedFields: ['formData', 'applicantProfile'] },
+    });
 
     // Ocultar detalles sensibles de la cita hasta que se confirme el pago
     if (booking.status === 'PRE_CONFIRMED' && booking.appointment) {

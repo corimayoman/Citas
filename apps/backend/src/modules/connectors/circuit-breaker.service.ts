@@ -265,6 +265,21 @@ export const circuitBreakerService = {
       data: { status: 'ERROR' },
     });
 
+    // Audit: SEARCHING → ERROR for each cascaded booking
+    await Promise.allSettled(
+      affectedBookings.map((booking) =>
+        auditService.log({
+          userId: booking.userId,
+          action: AuditAction.UPDATE,
+          entityType: 'BookingRequest',
+          entityId: booking.id,
+          before: { status: 'SEARCHING' } as object,
+          after: { status: 'ERROR', reason: 'CONNECTOR_SUSPENDED' } as object,
+          metadata: { trigger: 'circuit-breaker-cascade', connectorId } as object,
+        }),
+      ),
+    );
+
     logger.info(
       `CircuitBreaker: moved ${affectedBookings.length} SEARCHING booking(s) to ERROR for connector ${connectorId}`,
     );

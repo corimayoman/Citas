@@ -24,6 +24,7 @@ import { circuitBreakerService } from '../connectors/circuit-breaker.service';
 import { CircuitBreakerError } from '../connectors/adapters/base-real.connector';
 import { bookingService } from './booking.service';
 import { notificationService } from '../notifications/notification.service';
+import { auditService } from '../audit/audit.service';
 import { SEARCH_QUEUE_NAME, SEARCH_QUEUE_CONFIG } from './search.queue';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -95,6 +96,14 @@ async function processSearchJob(job: Job<SearchJobData>): Promise<void> {
     await prisma.bookingRequest.update({
       where: { id: bookingRequestId },
       data: { status: 'ERROR' },
+    });
+    await auditService.log({
+      userId: booking.userId,
+      action: 'UPDATE',
+      entityType: 'BookingRequest',
+      entityId: bookingRequestId,
+      before: { status: 'SEARCHING' },
+      after: { status: 'ERROR', reason: 'CONNECTOR_SUSPENDED' },
     });
     await notificationService.send({
       userId: booking.userId,
@@ -252,6 +261,16 @@ async function processSearchJob(job: Job<SearchJobData>): Promise<void> {
         data: { status: 'ERROR' },
       });
 
+      // Audit: SEARCHING → ERROR (CircuitBreakerError)
+      await auditService.log({
+        userId: booking.userId,
+        action: 'UPDATE',
+        entityType: 'BookingRequest',
+        entityId: bookingRequestId,
+        before: { status: 'SEARCHING' },
+        after: { status: 'ERROR', reason: err.reason },
+      });
+
       await notificationService.send({
         userId: booking.userId,
         title: 'Búsqueda cancelada',
@@ -314,6 +333,16 @@ async function onSearchJobFailed(
       await prisma.bookingRequest.update({
         where: { id: bookingRequestId },
         data: { status: 'ERROR' },
+      });
+
+      // Audit: SEARCHING → ERROR (max attempts reached)
+      await auditService.log({
+        userId: booking.userId,
+        action: 'UPDATE',
+        entityType: 'BookingRequest',
+        entityId: bookingRequestId,
+        before: { status: 'SEARCHING' },
+        after: { status: 'ERROR', reason: 'MAX_ATTEMPTS_REACHED' },
       });
 
       await notificationService.send({
