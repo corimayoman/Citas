@@ -89,10 +89,11 @@ router.get('/connectors/health', authorize('ADMIN'), async (_req: Request, res: 
   } catch (err) { next(err); }
 });
 
-// Reset and seed — solo disponible si NODE_ENV !== 'production'
+// Reset and seed — bloqueado en producción real, permitido en QA
 // POST /api/admin/reset-and-seed
 router.post('/reset-and-seed', authorize('ADMIN'), async (_req: Request, res: Response, next: NextFunction) => {
-  if (process.env.NODE_ENV === 'production') {
+  const env = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV || '';
+  if (env === 'production') {
     res.status(403).json({ error: 'Not available in production' });
     return;
   }
