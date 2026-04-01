@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -23,6 +23,33 @@ export function BookingWizard({ procedure }: WizardProps) {
   const [preferredDateFrom, setPreferredDateFrom] = useState('');
   const [preferredDateTo, setPreferredDateTo] = useState('');
   const [preferredTimeSlot, setPreferredTimeSlot] = useState<'morning' | 'afternoon' | ''>('');
+
+  const storageKey = `wizard-${procedure.id}`;
+
+  // Restore state from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(storageKey);
+      if (saved) {
+        const s = JSON.parse(saved);
+        if (s.step) setStep(s.step);
+        if (s.selectedProfile) setSelectedProfile(s.selectedProfile);
+        if (s.formData) setFormData(s.formData);
+        if (s.preferredDateFrom) setPreferredDateFrom(s.preferredDateFrom);
+        if (s.preferredDateTo) setPreferredDateTo(s.preferredDateTo);
+        if (s.preferredTimeSlot) setPreferredTimeSlot(s.preferredTimeSlot);
+      }
+    } catch {}
+  }, []);
+
+  // Save state to sessionStorage on change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify({
+        step, selectedProfile, formData, preferredDateFrom, preferredDateTo, preferredTimeSlot,
+      }));
+    } catch {}
+  }, [step, selectedProfile, formData, preferredDateFrom, preferredDateTo, preferredTimeSlot]);
 
   const { data: profilesData, isLoading: profilesLoading } = useQuery({
     queryKey: ['profiles'],
@@ -84,6 +111,7 @@ export function BookingWizard({ procedure }: WizardProps) {
       preferredTimeSlot: preferredTimeSlot || undefined,
     }),
     onSuccess: () => {
+      sessionStorage.removeItem(storageKey);
       router.push('/bookings?created=1');
     },
     onError: (err: any) => {

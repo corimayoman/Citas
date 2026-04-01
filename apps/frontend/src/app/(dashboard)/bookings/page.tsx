@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
@@ -34,10 +35,12 @@ export default function BookingsPage() {
 function BookingsContent() {
   const searchParams = useSearchParams();
   const justCreated = searchParams.get('created') === '1';
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['bookings'],
-    queryFn: () => api.get('/bookings').then(r => r.data.data),
+    queryKey: ['bookings', page],
+    queryFn: () => api.get('/bookings', { params: { page, limit } }).then(r => r.data.data),
   });
 
   const bookings = data?.bookings || [];
@@ -101,6 +104,16 @@ function BookingsContent() {
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {data?.total > limit && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">Página {page} de {Math.ceil((data?.total || 0) / limit)}</p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page * limit >= (data?.total || 0)}>Siguiente</Button>
+          </div>
         </div>
       )}
     </div>

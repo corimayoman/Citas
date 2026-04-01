@@ -58,7 +58,7 @@ function NotificationPreferences({ user }: { user: any }) {
         <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            Las notificaciones por SMS están temporalmente deshabilitadas. Tu canal fue cambiado a Email automáticamente.
+            Las notificaciones por SMS no están disponibles en este momento. Estamos trabajando para habilitarlas pronto. Mientras tanto, recibirás las notificaciones por email.
           </span>
         </div>
       )}

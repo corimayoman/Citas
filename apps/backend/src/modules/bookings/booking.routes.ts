@@ -60,4 +60,11 @@ router.post('/:id/confirm-payment', async (req: Request, res: Response, next: Ne
   } catch (err) { next(err); }
 });
 
+router.post('/:id/cancel', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await bookingService.cancelBooking(req.params.id, req.user!.userId);
+    res.json({ data: result });
+  } catch (err) { next(err); }
+});
+
 export default router;

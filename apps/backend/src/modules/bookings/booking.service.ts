@@ -465,6 +465,29 @@ export const bookingService = {
     return { bookings, total, page, limit };
   },
 
+  async cancelBooking(bookingId: string, userId: string) {
+    const booking = await prisma.bookingRequest.findFirst({
+      where: { id: bookingId, userId, status: { in: ['SEARCHING', 'PRE_CONFIRMED', 'DRAFT'] } },
+    });
+    if (!booking) throw new AppError(404, 'Reserva no encontrada o no se puede cancelar', 'BOOKING_NOT_FOUND');
+
+    await prisma.bookingRequest.update({
+      where: { id: bookingId },
+      data: { status: 'CANCELLED' },
+    });
+
+    await auditService.log({
+      userId,
+      action: 'UPDATE',
+      entityType: 'BookingRequest',
+      entityId: bookingId,
+      before: { status: booking.status },
+      after: { status: 'CANCELLED' },
+    });
+
+    return { cancelled: true };
+  },
+
   async getBookingById(bookingId: string, userId: string) {
     const booking = await prisma.bookingRequest.findFirst({
       where: { id: bookingId, userId },

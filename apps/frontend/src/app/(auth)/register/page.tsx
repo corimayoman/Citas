@@ -71,6 +71,7 @@ export default function RegisterPage() {
               <label htmlFor="password" className="block text-xs font-medium text-muted-foreground mb-1.5">Contraseña</label>
               <input id="password" type="password" {...register('password')} className={inputClass} />
               {errors.password && <p className="text-primary text-xs mt-1">{errors.password.message}</p>}
+              <p className="text-xs text-muted-foreground mt-1">Mínimo 8 caracteres, con mayúsculas, minúsculas y números.</p>
             </div>
             <div>
               <label htmlFor="confirmPassword" className="block text-xs font-medium text-muted-foreground mb-1.5">Confirmar contraseña</label>

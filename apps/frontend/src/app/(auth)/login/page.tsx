@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useAuthStore } from '@/store/auth.store';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const { login, isLoading } = useAuthStore();
   const [error, setError] = useState('');
   const [needsMfa, setNeedsMfa] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -64,13 +66,19 @@ export default function LoginPage() {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium mb-1">Contraseña</label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              {...register('password')}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                {...register('password')}
+                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring pr-10"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             {errors.password && <p className="text-destructive text-xs mt-1">{errors.password.message}</p>}
           </div>
 

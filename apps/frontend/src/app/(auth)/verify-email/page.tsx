@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -33,20 +34,20 @@ function VerifyEmailContent() {
       <div className="bg-white rounded-xl border p-8 max-w-md w-full text-center space-y-4">
         {status === 'loading' && (
           <>
-            <div className="text-4xl">⏳</div>
+            <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
             <p className="text-gray-600">Verificando tu email...</p>
           </>
         )}
         {status === 'success' && (
           <>
-            <div className="text-4xl">✅</div>
+            <CheckCircle className="h-10 w-10 text-emerald-600 mx-auto" />
             <h1 className="text-xl font-semibold text-gray-900">Email verificado</h1>
             <p className="text-gray-500 text-sm">Tu cuenta está activa. Redirigiendo al login...</p>
           </>
         )}
         {status === 'error' && (
           <>
-            <div className="text-4xl">❌</div>
+            <XCircle className="h-10 w-10 text-red-500 mx-auto" />
             <h1 className="text-xl font-semibold text-gray-900">Error de verificación</h1>
             <p className="text-gray-500 text-sm">{message}</p>
             <a href="/login" className="inline-block mt-2 text-sm text-blue-600 hover:underline">

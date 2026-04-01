@@ -5,7 +5,8 @@ import { api } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, FileText, CreditCard, User, CheckCircle, AlertCircle, Clock, XCircle, RefreshCw, Search, Bell } from 'lucide-react';
+import Link from 'next/link';
+import { Calendar, FileText, CreditCard, User, CheckCircle, AlertCircle, Clock, XCircle, RefreshCw, Search, Bell, ChevronRight } from 'lucide-react';
 
 function PreConfirmedPayment({ bookingId, procedure, paymentDeadline }: { bookingId: string; procedure: any; paymentDeadline?: string }) {
   const queryClient = useQueryClient();
@@ -85,6 +86,7 @@ const card = 'bg-card rounded-lg border border-border p-6';
 
 export default function BookingDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking', params.id],
@@ -113,9 +115,11 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
 
   return (
     <div className="max-w-2xl space-y-6">
-      <Button variant="ghost" size="sm" onClick={() => router.back()}>
-        <ArrowLeft className="h-4 w-4 mr-1" /> Volver
-      </Button>
+      <nav className="flex items-center gap-1 text-sm text-muted-foreground">
+        <Link href="/bookings" className="hover:text-foreground transition-colors">Mis citas</Link>
+        <ChevronRight className="h-3 w-3" />
+        <span className="text-foreground font-medium truncate max-w-xs">{booking?.procedure?.name || 'Detalle'}</span>
+      </nav>
 
       <div className={card}>
         <div className="flex items-start justify-between">
@@ -170,6 +174,9 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
             {booking.appointment.location && <p><span className="text-muted-foreground">Lugar:</span> <span className="text-foreground">{booking.appointment.location}</span></p>}
             {booking.appointment.instructions && <p className="text-muted-foreground text-xs mt-2">{booking.appointment.instructions}</p>}
           </div>
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="mt-2">
+            Imprimir comprobante
+          </Button>
         </div>
       )}
 
@@ -192,7 +199,7 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
           <Search className="h-4 w-4 text-blue-600 mt-0.5 shrink-0 animate-pulse" />
           <div>
             <p className="text-sm font-medium text-foreground">Buscando cita disponible</p>
-            <p className="text-xs text-muted-foreground mt-1">Estamos buscando la primera cita disponible. Esta página se actualiza automáticamente.</p>
+            <p className="text-xs text-muted-foreground mt-1">Estamos buscando la primera cita disponible dentro de tus preferencias. La búsqueda puede tardar entre minutos y horas dependiendo de la disponibilidad del portal. Te notificaremos por email cuando la encontremos — no necesitás quedarte en esta página.</p>
           </div>
         </div>
       )}
@@ -217,6 +224,21 @@ export default function BookingDetailPage({ params }: { params: { id: string } }
               </a>
             </div>
           </div>
+        </div>
+      )}
+
+      {['SEARCHING', 'PRE_CONFIRMED', 'DRAFT'].includes(booking.status) && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50"
+            onClick={async () => {
+              if (!confirm('¿Estás seguro de que querés cancelar este expediente?')) return;
+              try {
+                await api.post(`/bookings/${params.id}/cancel`);
+                queryClient.invalidateQueries({ queryKey: ['booking', params.id] });
+              } catch {}
+            }}>
+            Cancelar expediente
+          </Button>
         </div>
       )}
     </div>
