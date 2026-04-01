@@ -41,34 +41,50 @@ export default function AdminPage() {
       </div>
 
       {/* Reset & Seed */}
-      <div className="bg-card rounded-lg border border-border p-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Reset & Seed</p>
-          <p className="text-xs text-muted-foreground">Borra todos los datos y recarga los datos iniciales (usuarios, trámites, conectores).</p>
+      <div className="bg-card rounded-lg border border-border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Reset & Seed</p>
+            <p className="text-xs text-muted-foreground">Borra todos los datos y recarga los datos iniciales (usuarios, trámites, conectores).</p>
+          </div>
+          <button
+            onClick={async () => {
+              if (!confirm('¿Estás seguro? Esto borrará TODOS los datos y los reemplazará con los datos de seed.\n\nDespués del reset tendrás que volver a loguearte.')) return;
+              setResetting(true);
+              setResetStatus('⏳ Truncando tablas...');
+              try {
+                await api.post('/admin/reset-and-seed');
+                setResetStatus('✅ Reset completado. Redirigiendo al login...');
+                // Clear tokens since they were invalidated by the truncate
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                setTimeout(() => window.location.href = '/login', 2000);
+              } catch (err: any) {
+                const msg = err?.response?.data?.error?.message || err?.response?.data?.error || err?.message || 'Error desconocido';
+                if (err?.response?.status === 401) {
+                  setResetStatus('✅ Reset completado (sesión expirada). Redirigiendo al login...');
+                  localStorage.removeItem('accessToken');
+                  localStorage.removeItem('refreshToken');
+                  setTimeout(() => window.location.href = '/login', 2000);
+                } else {
+                  setResetStatus(`❌ Error: ${msg}`);
+                  setResetting(false);
+                }
+              }
+            }}
+            disabled={resetting}
+            className="inline-flex items-center gap-2 text-xs px-3 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 shrink-0"
+          >
+            <RotateCcw className={`h-3 w-3 ${resetting ? 'animate-spin' : ''}`} />
+            {resetting ? 'Ejecutando...' : 'Reset & Seed'}
+          </button>
         </div>
-        <button
-          onClick={async () => {
-            if (!confirm('¿Estás seguro? Esto borrará TODOS los datos y los reemplazará con los datos de seed.')) return;
-            setResetting(true);
-            setResetStatus(null);
-            try {
-              await api.post('/admin/reset-and-seed');
-              setResetStatus('Reset completado. Recargando...');
-              queryClient.invalidateQueries();
-              setTimeout(() => window.location.reload(), 1500);
-            } catch (err: any) {
-              setResetStatus(err?.response?.data?.error || 'Error al ejecutar reset');
-            } finally {
-              setResetting(false);
-            }
-          }}
-          disabled={resetting}
-          className="inline-flex items-center gap-2 text-xs px-3 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-        >
-          <RotateCcw className={`h-3 w-3 ${resetting ? 'animate-spin' : ''}`} /> {resetting ? 'Ejecutando...' : 'Reset & Seed'}
-        </button>
+        {resetStatus && (
+          <div className={`text-xs px-3 py-2 rounded ${resetStatus.startsWith('✅') ? 'bg-emerald-50 text-emerald-700' : resetStatus.startsWith('❌') ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+            {resetStatus}
+          </div>
+        )}
       </div>
-      {resetStatus && <p className="text-xs text-muted-foreground">{resetStatus}</p>}
 
       {/* Users table */}
       <div className="bg-card rounded-lg border border-border">
