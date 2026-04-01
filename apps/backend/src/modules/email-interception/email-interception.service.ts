@@ -2,6 +2,10 @@ import { prisma } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
 import { auditService } from '../audit/audit.service';
 import { parseExtranjeria } from './parsers/extranjeria.parser';
+import { parseDgt } from './parsers/dgt.parser';
+import { parseAeat } from './parsers/aeat.parser';
+import { parseSepe } from './parsers/sepe.parser';
+import { parseRegistroCivil } from './parsers/registro-civil.parser';
 import { parseGeneric } from './parsers/generic.parser';
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
@@ -123,11 +127,16 @@ export const emailInterceptionService = {
         result = parseExtranjeria(body);
         break;
       case 'dgt':
+        result = parseDgt(body);
+        break;
       case 'aeat':
+        result = parseAeat(body);
+        break;
       case 'sepe':
+        result = parseSepe(body);
+        break;
       case 'registro-civil':
-        // Future: dedicated parsers per portal. For now, use generic.
-        result = parseGeneric(body);
+        result = parseRegistroCivil(body);
         break;
       default:
         result = parseGeneric(body);

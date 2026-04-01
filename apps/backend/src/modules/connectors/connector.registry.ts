@@ -4,6 +4,12 @@
  */
 import { IConnector } from './connector.interface';
 import { MockConnector } from './adapters/mock.connector';
+import { BaseRealConnector } from './adapters/base-real.connector';
+import { ExtranjeriaConnector } from './adapters/extranjeria.connector';
+import { DgtConnector } from './adapters/dgt.connector';
+import { AeatConnector } from './adapters/aeat.connector';
+import { SepeConnector } from './adapters/sepe.connector';
+import { RegistroCivilConnector } from './adapters/registro-civil.connector';
 import { logger } from '../../lib/logger';
 
 class ConnectorRegistry {
@@ -12,6 +18,24 @@ class ConnectorRegistry {
   constructor() {
     // Register built-in connectors
     this.register(new MockConnector());
+
+    // Register real connectors with non-blocking healthChecks
+    const realConnectors: [string, BaseRealConnector][] = [
+      ['ExtranjeriaConnector', new ExtranjeriaConnector()],
+      ['DgtConnector', new DgtConnector()],
+      ['AeatConnector', new AeatConnector()],
+      ['SepeConnector', new SepeConnector()],
+      ['RegistroCivilConnector', new RegistroCivilConnector()],
+    ];
+
+    for (const [name, connector] of realConnectors) {
+      this.register(connector);
+      connector.healthCheck().then((ok) => {
+        logger.info(`${name} healthCheck: ${ok ? 'OK' : 'FAIL'}`);
+      }).catch((err) => {
+        logger.warn(`${name} healthCheck error (non-blocking)`, err);
+      });
+    }
   }
 
   register(connector: IConnector): void {
