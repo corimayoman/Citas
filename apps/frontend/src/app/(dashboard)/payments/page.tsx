@@ -6,8 +6,8 @@ import { CreditCard } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   PENDING: { label: 'Pendiente', color: 'bg-primary/10 text-primary-light' },
-  COMPLETED: { label: 'Completado', color: 'bg-emerald-900/30 text-emerald-400' },
-  FAILED: { label: 'Fallido', color: 'bg-red-900/30 text-red-400' },
+  COMPLETED: { label: 'Completado', color: 'bg-emerald-100 text-emerald-700' },
+  FAILED: { label: 'Fallido', color: 'bg-red-100 text-red-700' },
   REFUNDED: { label: 'Reembolsado', color: 'bg-secondary text-muted-foreground' },
 };
 

@@ -47,7 +47,7 @@ export default function BookingSuccessPage({ params }: { params: { id: string } 
       <div className="bg-card rounded-lg border border-border p-8 text-center">
         {isConfirmed ? (
           <>
-            <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
+            <CheckCircle className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">¡Cita confirmada!</h2>
             <p className="text-muted-foreground text-sm mb-4">
               Tu pago fue procesado y tu cita está confirmada. Revisá tu expediente para ver la fecha, hora y lugar.

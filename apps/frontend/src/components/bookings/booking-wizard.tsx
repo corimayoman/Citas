@@ -95,8 +95,8 @@ export function BookingWizard({ procedure }: WizardProps) {
             <div key={label} className="flex items-center gap-2">
               <div className={cn(
                 'h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium',
-                i < step ? 'bg-primary text-foreground' :
-                i === step ? 'bg-primary text-foreground' :
+                i < step ? 'bg-primary text-white' :
+                i === step ? 'bg-primary text-white' :
                 'bg-secondary text-muted-foreground'
               )}>
                 {i < step ? <Check className="h-3 w-3" /> : i + 1}
