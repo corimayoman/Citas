@@ -16,6 +16,11 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   ERROR: { label: 'Error', color: 'bg-red-100 text-red-700' },
   REQUIRES_USER_ACTION: { label: 'Requiere acción', color: 'bg-primary/10 text-primary-light' },
   CANCELLED: { label: 'Cancelado', color: 'bg-secondary text-muted-foreground' },
+  SEARCHING: { label: 'Buscando cita', color: 'bg-blue-100 text-blue-700' },
+  PRE_CONFIRMED: { label: 'Cita encontrada', color: 'bg-primary/10 text-primary-light' },
+  CONFIRMED: { label: 'Confirmado', color: 'bg-emerald-100 text-emerald-700' },
+  EXPIRED: { label: 'Expirado', color: 'bg-secondary text-muted-foreground' },
+  REFUNDED: { label: 'Reembolsado', color: 'bg-secondary text-muted-foreground' },
 };
 
 export default function DashboardPage() {
@@ -30,7 +35,7 @@ export default function DashboardPage() {
   const stats = {
     total: bookings.length,
     completed: bookings.filter((b: any) => b.status === 'COMPLETED').length,
-    inProgress: bookings.filter((b: any) => ['IN_PROGRESS', 'PAID'].includes(b.status)).length,
+    inProgress: bookings.filter((b: any) => ['IN_PROGRESS', 'PAID', 'SEARCHING'].includes(b.status)).length,
     pending: bookings.filter((b: any) => b.status === 'REQUIRES_USER_ACTION').length,
   };
 

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Activity, RefreshCw, Play, ShieldCheck } from 'lucide-react';
+import { connectorStatusLabels } from '@/lib/translations';
 
 interface Connector {
   id: string;
@@ -122,7 +123,7 @@ export default function AdminConnectorsPage() {
                     <td className="p-3 text-muted-foreground">{c.slug}</td>
                     <td className="p-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadge(c.status)}`}>
-                        {c.status}
+                        {connectorStatusLabels[c.status] ?? c.status}
                       </span>
                     </td>
                     <td className="p-3 text-muted-foreground">

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Users, Building2, FileText, Activity, RotateCcw } from 'lucide-react';
+import { roleLabels } from '@/lib/translations';
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
@@ -105,7 +106,7 @@ export default function AdminPage() {
               <div key={u.id} className="p-4 flex items-center justify-between text-sm">
                 <div>
                   <p className="font-medium text-foreground">{u.email}</p>
-                  <p className="text-xs text-muted-foreground">{u.role} · {u.isEmailVerified ? 'Verificado' : 'Sin verificar'}</p>
+                  <p className="text-xs text-muted-foreground">{roleLabels[u.role] ?? u.role} · {u.isEmailVerified ? 'Verificado' : 'Sin verificar'}</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${u.isActive !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary text-muted-foreground'}`}>
                   {u.isActive !== false ? 'Activo' : 'Inactivo'}

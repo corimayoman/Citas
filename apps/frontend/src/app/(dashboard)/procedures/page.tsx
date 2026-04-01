@@ -63,6 +63,8 @@ export default function ProceduresPage() {
           <option value="Empleo">Empleo</option>
           <option value="Tráfico">Tráfico</option>
           <option value="Extranjería">Extranjería</option>
+          <option value="Hacienda">Hacienda</option>
+          <option value="Registro Civil">Registro Civil</option>
           <option value="Demo">Demo</option>
         </select>
       </div>

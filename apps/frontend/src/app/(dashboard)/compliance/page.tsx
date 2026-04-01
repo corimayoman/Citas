@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ShieldCheck, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { complianceLevelLabels, connectorStatusLabels } from '@/lib/translations';
 
 export default function CompliancePage() {
   const { data, isLoading } = useQuery({
@@ -21,7 +22,7 @@ export default function CompliancePage() {
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center gap-2">
         <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-        <h2 className="text-xl font-semibold text-foreground">Compliance</h2>
+        <h2 className="text-xl font-semibold text-foreground">Cumplimiento</h2>
       </div>
 
       <div className="bg-card rounded-lg border border-border">
@@ -48,7 +49,7 @@ export default function CompliancePage() {
                     <p className="text-sm font-medium text-foreground">{c.name}</p>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${levelColor[c.complianceLevel] || 'bg-secondary text-muted-foreground'}`}>
-                    {c.complianceLevel}
+                    {complianceLevelLabels[c.complianceLevel] ?? c.complianceLevel}
                   </span>
                 </div>
                 {c.legalBasis && (
