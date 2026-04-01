@@ -87,53 +87,28 @@ La automatización solo se activa cuando no viola los Términos de Servicio del 
 
 ## Arquitectura de deployment
 
-```mermaid
-graph LR
-  subgraph GitHub
-    qa[branch: qa]
-    main[branch: main]
-  end
-
-  subgraph Railway QA
-    BQA[Backend QA]
-    FQA[Frontend QA]
-    PQA[(Postgres QA)]
-    RQA[(Redis QA)]
-  end
-
-  subgraph Railway Production
-    BP[Backend Prod]
-    FP[Frontend Prod]
-    PP[(Postgres Prod)]
-    RP[(Redis Prod)]
-  end
-
-  qa -- push --> BQA & FQA
-  BQA --- PQA & RQA
-  main -- push --> BP & FP
-  BP --- PP & RP
-
-  subgraph Servicios externos
-    SG[SendGrid]
-    TW[Twilio]
-    ST[Stripe]
-  end
-
-  BQA -. email .-> SG
-  BQA -. sms .-> TW
-  BQA -. pagos .-> ST
-  BP -. email .-> SG
-  BP -. pagos .-> ST
+```
+GitHub
+  ├── branch: qa   ──push──▶  Railway QA environment
+  │                              ├── Citas-Backend-QA  (citas-backend-qa.up.railway.app)
+  │                              ├── Citas-Frontend-QA (citas-frontend-qa.up.railway.app)
+  │                              ├── Postgres-QA       (postgres.railway.internal)
+  │                              └── Redis-QA          (redis.railway.internal)
+  │
+  └── branch: main ──push──▶  Railway Production environment
+                                 ├── Citas-Backend     (citas-backend-production-ad65.up.railway.app)
+                                 ├── Citas-Frontend    (citas-frontend-production-f2ef.up.railway.app)
+                                 ├── Postgres-Prod     (postgres.railway.internal)
+                                 └── Redis-Prod        (redis.railway.internal)
 ```
 
 ### Flujo de deploy
 
-```mermaid
-graph LR
-  F[feature/xxx] -->|gw promote qa| QA[qa]
-  QA -->|gw promote prod| M[main]
-  QA -->|auto-deploy| RQA[Railway QA]
-  M -->|auto-deploy| RP[Railway Production]
+```
+feature/xxx  →  (gw promote qa)  →  qa  →  (gw promote prod)  →  main
+                                     ↓                              ↓
+                               Railway QA                   Railway Production
+                               (auto-deploy)                (auto-deploy)
 ```
 
 ### Servicios externos
@@ -141,7 +116,7 @@ graph LR
 | Servicio | Uso | Environment |
 |----------|-----|-------------|
 | SendGrid | Email de notificaciones | QA + Prod |
-| Twilio | SMS de notificaciones (deshabilitado — cuenta trial) | — |
+| Twilio | SMS de notificaciones | QA + Prod |
 | Stripe | Pagos (demo mode activo) | QA + Prod |
 
 ---
@@ -172,55 +147,15 @@ Antes de reservar un turno, necesitás crear un perfil con los datos de la perso
 5. Indicar el rango de fechas preferido y horario (mañana / tarde)
 6. Confirmar y pagar la tarifa del servicio
 7. El sistema busca un turno disponible en segundo plano
-8. Cuando encuentra uno, te notifica por email (o SMS cuando esté habilitado)
+8. Cuando encuentra uno, te notifica por email o SMS
 9. Tenés 24 horas para confirmar el turno antes de que expire
-
-#### Flujo de reserva (diagrama)
-
-```mermaid
-sequenceDiagram
-    actor U as Usuario
-    participant F as Frontend
-    participant B as Backend
-    participant C as Connector
-    participant S as Stripe
-    participant N as SendGrid
-
-    U->>F: Elige trámite + perfil + fechas
-    F->>B: POST /bookings (DRAFT)
-    B-->>F: booking creado
-
-    U->>F: Click "Pagar"
-    F->>B: POST /payments/checkout
-    B->>S: Crear sesión Checkout
-    S-->>B: session_id
-    B-->>F: redirect URL
-    F->>S: Redirect a Stripe
-    S-->>F: Pago completado
-    S->>B: Webhook checkout.session.completed
-    B->>B: Booking → SEARCHING
-
-    loop Búsqueda automática
-        B->>C: getAvailability()
-        C-->>B: slot disponible
-    end
-
-    B->>B: Booking → PRE_CONFIRMED
-    B->>N: Email "Cita disponible"
-    N-->>U: 📧 Notificación
-
-    U->>F: Click "Confirmar"
-    F->>B: POST /bookings/:id/confirm-payment
-    B->>B: Booking → CONFIRMED
-    B->>N: Email "Cita confirmada"
-    N-->>U: 📧 Detalles del turno
-```
 
 ### Configurar notificaciones
 
 1. Ir a **Perfil** → "Preferencias de notificación"
-2. Elegir canal: **Email** (SMS temporalmente deshabilitado — ver [MOCKS.md](./MOCKS.md#23))
-3. Guardar
+2. Elegir canal: **Email** o **SMS**
+3. Si elegís SMS, ingresar tu número de teléfono en formato internacional (ej: `+34612345678`)
+4. Guardar
 
 ### Ver mis turnos
 
@@ -360,64 +295,26 @@ Ver estado de integraciones en [MOCKS.md](./MOCKS.md).
 
 ### Diagrama de entidades
 
-```mermaid
-erDiagram
-    User ||--o{ RefreshToken : has
-    User ||--o{ ApplicantProfile : has
-    User ||--o{ BookingRequest : creates
-    User ||--o{ Payment : makes
-    User ||--o{ Notification : receives
-    User ||--o{ AuditLog : generates
+```
+User
+ ├── RefreshToken[]
+ ├── ApplicantProfile[]
+ │    └── DocumentFile[]
+ ├── BookingRequest[]
+ │    ├── BookingAttempt[]
+ │    ├── Appointment
+ │    ├── Payment → Invoice
+ │    └── DocumentFile[]
+ ├── Payment[]
+ ├── Notification[]
+ └── AuditLog[]
 
-    ApplicantProfile ||--o{ DocumentFile : attaches
-
-    BookingRequest ||--o{ BookingAttempt : has
-    BookingRequest ||--o| Appointment : resolves_to
-    BookingRequest ||--o| Payment : requires
-    BookingRequest ||--o{ DocumentFile : attaches
-
-    Payment ||--o| Invoice : generates
-
-    Organization ||--o{ Procedure : offers
-    Organization ||--o{ Connector : has
-
-    Procedure ||--o{ ProcedureRequirement : defines
-
-    Connector ||--o{ ConnectorCapability : has
-    Connector ||--o{ ComplianceReview : reviewed_by
-
-    User {
-        uuid id PK
-        string email UK
-        enum role
-        enum notificationChannel
-        boolean mfaEnabled
-        boolean consentGiven
-    }
-
-    BookingRequest {
-        uuid id PK
-        enum status
-        json formData
-        datetime preferredDateFrom
-        datetime preferredDateTo
-        string externalRef
-    }
-
-    Payment {
-        uuid id PK
-        enum status
-        decimal amount
-        string currency
-        string stripeSessionId
-    }
-
-    Connector {
-        uuid id PK
-        string name
-        enum integrationType
-        boolean isActive
-    }
+Organization
+ ├── Procedure[]
+ │    └── ProcedureRequirement[]
+ └── Connector[]
+      ├── ConnectorCapability[]
+      └── ComplianceReview[]
 ```
 
 ### Entidades principales
@@ -464,23 +361,12 @@ Solicitud de turno de un usuario para un trámite específico.
 
 ### Estados de booking
 
-```mermaid
-stateDiagram-v2
-    [*] --> DRAFT
-    DRAFT --> SEARCHING : pagar
-    SEARCHING --> PRE_CONFIRMED : cita encontrada
-    PRE_CONFIRMED --> CONFIRMED : confirmar
-    PRE_CONFIRMED --> EXPIRED : deadline vencido
-    CONFIRMED --> COMPLETED : turno realizado
-    SEARCHING --> REQUIRES_USER_ACTION : modo asistido
-
-    DRAFT --> CANCELLED
-    SEARCHING --> CANCELLED
-    PRE_CONFIRMED --> CANCELLED
-    CONFIRMED --> CANCELLED
-    SEARCHING --> ERROR
-    CONFIRMED --> REFUNDED
-    CANCELLED --> REFUNDED
+```
+DRAFT → (pagar) → SEARCHING → PRE_CONFIRMED → (confirmar) → CONFIRMED
+                                             ↘ EXPIRED (deadline sin confirmar)
+         (cualquier estado) → CANCELLED
+         (cualquier estado) → ERROR
+         (cualquier estado) → REFUNDED
 ```
 
 | Valor | Significado | Próxima acción |
@@ -497,15 +383,6 @@ stateDiagram-v2
 | `EXPIRED` | Deadline de confirmación vencido | — |
 
 ### Estados de pago
-
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING : checkout creado
-    PENDING --> PAID : Stripe confirma
-    PENDING --> FAILED : rechazado / expirado
-    PAID --> REFUNDED : reembolso completo
-    PAID --> PARTIALLY_REFUNDED : reembolso parcial
-```
 
 | Valor | Significado |
 |-------|-------------|
@@ -580,7 +457,6 @@ Docs interactivos: `http://localhost:3001/api/docs`
 | `POST` | `/payments/checkout` | Bearer | Crear sesión Stripe Checkout |
 | `POST` | `/payments/demo-checkout` | Bearer | Demo — marca pago como pagado e inicia búsqueda |
 | `POST` | `/payments/webhook` | Stripe sig | Manejar eventos de Stripe |
-| `POST` | `/payments/confirm-session` | Bearer | Confirmar pago verificando la sesión directamente con Stripe (fallback si el webhook falla) |
 
 ### Notificaciones
 
@@ -615,7 +491,6 @@ Docs interactivos: `http://localhost:3001/api/docs`
 | `GET` | `/admin/bookings` | Admin/Operator | Todos los bookings |
 | `GET` | `/admin/users` | Admin | Todas las cuentas |
 | `GET` | `/admin/audit-logs` | Admin/Compliance | Audit trail inmutable |
-| `POST` | `/admin/reset-and-seed` | Admin | Resetea y recrea los datos base (orgs, procedimientos, usuarios seed) — no disponible en producción |
 
 ### Health
 
@@ -629,21 +504,15 @@ Docs interactivos: `http://localhost:3001/api/docs`
 
 Cada conector debe pasar una revisión de compliance antes de operar en modo automatizado. El motor aplica reglas no negociables:
 
-```mermaid
-flowchart TD
-    Start([Revisión de compliance]) --> CaptchaCheck{¿Requiere bypass\nde CAPTCHA?}
-    CaptchaCheck -->|Sí| BLOCKED[🚫 MANUAL_ASSISTED\nCRITICAL — no se puede activar]
-    CaptchaCheck -->|No| AntiBotCheck{¿Requiere evasión\nanti-bot?}
-    AntiBotCheck -->|Sí| BLOCKED
-    AntiBotCheck -->|No| RateLimitCheck{¿Requiere evasión\nde rate limit?}
-    RateLimitCheck -->|Sí| BLOCKED
-    RateLimitCheck -->|No| AuthBypassCheck{¿Requiere bypass\nde auth?}
-    AuthBypassCheck -->|Sí| BLOCKED
-    AuthBypassCheck -->|No| ApiCheck{¿Tiene API oficial\n+ docs + ToS?}
-    ApiCheck -->|Sí| OFFICIAL[✅ OFFICIAL_API\nRiesgo: LOW]
-    ApiCheck -->|No| AuthIntCheck{¿Integración\nautorizada + ToS?}
-    AuthIntCheck -->|Sí| AUTHORIZED[⚠️ AUTHORIZED_INTEGRATION\nRiesgo: MEDIUM]
-    AuthIntCheck -->|No| MANUAL[📋 MANUAL_ASSISTED\nRiesgo: HIGH]
+```
+requiresCaptchaBypass    = true  →  MANUAL_ASSISTED (CRITICAL) — no se puede activar
+requiresAntiBotEvasion   = true  →  MANUAL_ASSISTED (CRITICAL) — no se puede activar
+requiresRateLimitEvasion = true  →  MANUAL_ASSISTED (CRITICAL) — no se puede activar
+requiresAuthBypass       = true  →  MANUAL_ASSISTED (CRITICAL) — no se puede activar
+
+hasOfficialApi + apiDocsChecked + termsChecked = true  →  OFFICIAL_API (LOW)
+hasAuthorizedIntegration + termsChecked = true         →  AUTHORIZED_INTEGRATION (MEDIUM)
+otherwise                                              →  MANUAL_ASSISTED (HIGH)
 ```
 
 Las revisiones se almacenan en `ComplianceReview` y expiran al año. Los conectores deben re-revisarse anualmente.
@@ -742,7 +611,6 @@ docker-compose up -d
 | `S3_BUCKET` | No | Nombre del bucket |
 | `S3_ACCESS_KEY` | No | Access key S3 |
 | `S3_SECRET_KEY` | No | Secret key S3 |
-| `S3_REGION` | No | Región del bucket S3 (ej: `eu-west-1`) |
 | `PORT` | No | Puerto del backend (default `3001`) |
 | `LOG_LEVEL` | No | Nivel de log Winston (default `info`) |
 
