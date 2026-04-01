@@ -54,11 +54,21 @@ export function BookingWizard({ procedure }: WizardProps) {
       setErrorMsg('Seleccioná un rango de fechas.');
       return;
     }
+    // Validar regla de 24h en el paso de preferencias
+    const minDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (new Date(preferredDateFrom) < minDate) {
+      setErrorMsg('La fecha "Desde" debe ser al menos 24 horas en el futuro.');
+      return;
+    }
+    if (new Date(preferredDateTo) < new Date(preferredDateFrom)) {
+      setErrorMsg('La fecha "Hasta" debe ser posterior a la fecha "Desde".');
+      return;
+    }
     const profile = profiles.find(p => p.id === selectedProfile);
     if (profile) setFormData(buildFormDataFromProfile(profile));
     const fields: any[] = procedure.formSchema?.fields || [];
     if (fields.length === 0) {
-      setStep(3); // saltar datos, ir a revisión
+      setStep(3);
     } else {
       setStep(2);
     }
@@ -84,7 +94,11 @@ export function BookingWizard({ procedure }: WizardProps) {
   });
 
   const fields: any[] = procedure.formSchema?.fields || [];
-  const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  // Build a map of field name → label for the review step
+  const fieldLabelMap: Record<string, string> = {};
+  fields.forEach((f: any) => { fieldLabelMap[f.name] = f.label; });
 
   return (
     <div className="bg-card rounded-lg border border-border">
@@ -170,14 +184,14 @@ export function BookingWizard({ procedure }: WizardProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Desde <span className="text-destructive">*</span></label>
-                <input type="date" min={today} value={preferredDateFrom}
+                <input type="date" min={tomorrow} value={preferredDateFrom}
                   onChange={e => setPreferredDateFrom(e.target.value)}
                   className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Hasta <span className="text-destructive">*</span></label>
-                <input type="date" min={preferredDateFrom || today} value={preferredDateTo}
+                <input type="date" min={preferredDateFrom || tomorrow} value={preferredDateTo}
                   onChange={e => setPreferredDateTo(e.target.value)}
                   className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
@@ -261,7 +275,7 @@ export function BookingWizard({ procedure }: WizardProps) {
               {preferredDateFrom && <p><span className="font-medium text-foreground">Fechas preferidas:</span> {preferredDateFrom} — {preferredDateTo}</p>}
               {preferredTimeSlot && <p><span className="font-medium text-foreground">Horario:</span> {preferredTimeSlot === 'morning' ? 'Mañana (antes de las 14:00)' : 'Tarde (después de las 14:00)'}</p>}
               {Object.entries(formData).map(([k, v]) => (
-                <p key={k}><span className="font-medium text-foreground capitalize">{k}:</span> {v}</p>
+                <p key={k}><span className="font-medium text-foreground">{fieldLabelMap[k] || k}:</span> {v}</p>
               ))}
             </div>
             <div className="bg-primary/10 border border-primary/20 rounded-md p-3 text-xs text-primary-light">
