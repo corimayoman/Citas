@@ -25,7 +25,7 @@ const createSchema = z.object({
   applicantProfileId: z.string().uuid(),
   procedureId: z.string().uuid(),
   formData: z.record(z.unknown()),
-  preferredDateFrom: z.string().optional(),
+  preferredDateFrom: z.string().datetime({ offset: true }).or(z.string().date()).optional(),
   preferredDateTo: z.string().optional(),
   preferredTimeSlot: z.enum(['morning', 'afternoon']).optional(),
 });

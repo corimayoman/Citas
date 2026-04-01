@@ -5,6 +5,7 @@ import { auditService } from '../audit/audit.service';
 import { notificationService } from '../notifications/notification.service';
 import { encrypt } from '../../lib/crypto';
 import { citaDisponibleHtml, citaConfirmadaHtml } from '../../lib/email-templates';
+import { enqueueSearchJob } from './search.queue';
 
 export const bookingService = {
   async createDraft(userId: string, data: {
@@ -22,6 +23,15 @@ export const bookingService = {
 
     if (!profile) throw new AppError(404, 'Perfil de solicitante no encontrado', 'PROFILE_NOT_FOUND');
     if (!procedure) throw new AppError(404, 'Trámite no encontrado', 'PROCEDURE_NOT_FOUND');
+
+    // ── Validar regla de 24 horas ──
+    if (data.preferredDateFrom) {
+      const preferredDate = new Date(data.preferredDateFrom);
+      const minAllowedDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      if (preferredDate < minAllowedDate) {
+        throw new AppError(422, 'La fecha preferida debe ser al menos 24 horas en el futuro', 'DATE_TOO_SOON');
+      }
+    }
 
     // ── Validar elegibilidad antes de crear el booking ──
     const formData = data.formData ?? {};
@@ -90,10 +100,22 @@ export const bookingService = {
 
     await auditService.log({ userId, action: 'CREATE', entityType: 'BookingRequest', entityId: booking.id });
 
-    // Arrancar búsqueda en background sin bloquear la respuesta
-    bookingService._runSearchLoop(booking.id).catch(() => {});
+    // Verificar que el conector no esté SUSPENDED antes de encolar
+    if (procedure.connector) {
+      const connector = procedure.connector;
+      if (connector.status === 'SUSPENDED') {
+        throw new AppError(503, 'El conector está temporalmente suspendido', 'CONNECTOR_SUSPENDED');
+      }
+    }
 
-    return booking;
+    // Encolar búsqueda en BullMQ en vez de ejecutar _runSearchLoop directamente
+    const searchJobId = await enqueueSearchJob(booking.id);
+    await prisma.bookingRequest.update({
+      where: { id: booking.id },
+      data: { searchJobId },
+    });
+
+    return { ...booking, searchJobId };
   },
 
   async validateBooking(bookingId: string, userId: string) {
@@ -436,6 +458,19 @@ export const bookingService = {
       },
     });
     if (!booking) throw new AppError(404, 'Reserva no encontrada', 'BOOKING_NOT_FOUND');
+
+    // Ocultar detalles sensibles de la cita hasta que se confirme el pago
+    if (booking.status === 'PRE_CONFIRMED' && booking.appointment) {
+      return {
+        ...booking,
+        appointment: {
+          ...booking.appointment,
+          confirmationCode: null,
+          location: null,
+        },
+      };
+    }
+
     return booking;
   },
 };

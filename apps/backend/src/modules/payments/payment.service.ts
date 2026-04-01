@@ -18,6 +18,10 @@ export const paymentService = {
     if (!booking.procedure.serviceFee) throw new AppError(400, 'Este trámite no tiene coste de servicio', 'NO_FEE');
     if (booking.status !== 'PRE_CONFIRMED') throw new AppError(409, 'La reserva no tiene una cita disponible para confirmar', 'NOT_PRE_CONFIRMED');
 
+    if (booking.paymentDeadline && new Date(booking.paymentDeadline) < new Date()) {
+      throw new AppError(422, 'El plazo de pago ha vencido', 'PAYMENT_DEADLINE_EXPIRED');
+    }
+
     const existingPayment = await prisma.payment.findUnique({ where: { bookingRequestId } });
     if (existingPayment?.status === PaymentStatus.PAID) {
       throw new AppError(409, 'Esta reserva ya está pagada', 'ALREADY_PAID');
@@ -117,6 +121,10 @@ export const paymentService = {
     // Solo se puede pagar cuando hay una cita encontrada (PRE_CONFIRMED)
     if (booking.status !== 'PRE_CONFIRMED') {
       throw new AppError(409, 'La reserva no tiene una cita disponible para confirmar', 'NOT_PRE_CONFIRMED');
+    }
+
+    if (booking.paymentDeadline && new Date(booking.paymentDeadline) < new Date()) {
+      throw new AppError(422, 'El plazo de pago ha vencido', 'PAYMENT_DEADLINE_EXPIRED');
     }
 
     const existingPayment = await prisma.payment.findUnique({ where: { bookingRequestId } });

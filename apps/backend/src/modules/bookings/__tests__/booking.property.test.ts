@@ -35,11 +35,16 @@ jest.mock('../../notifications/notification.service', () => ({ notificationServi
 jest.mock('../../audit/audit.service', () => ({ auditService: { log: jest.fn() } }));
 jest.mock('../../../lib/crypto', () => ({ encrypt: jest.fn().mockReturnValue('encrypted') }));
 
+jest.mock('../search.queue', () => ({
+  enqueueSearchJob: jest.fn().mockResolvedValue('job-123'),
+}));
+
+import { enqueueSearchJob } from '../search.queue';
+
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.spyOn(bookingService, '_runSearchLoop').mockResolvedValue(undefined);
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -74,7 +79,6 @@ describe('Property 1 — createDraft: siempre arranca en SEARCHING', () => {
   it(`se cumple para ${SAMPLES} combinaciones de procedureId y profileId`, async () => {
     for (let seed = 0; seed < SAMPLES; seed++) {
       jest.clearAllMocks();
-      jest.spyOn(bookingService, '_runSearchLoop').mockResolvedValue(undefined);
 
       (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: `profile-${seed}` });
       (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({ id: `proc-${seed}`, connector: null });
@@ -82,7 +86,13 @@ describe('Property 1 — createDraft: siempre arranca en SEARCHING', () => {
         id: `booking-${seed}`,
         status: 'SEARCHING',
       });
+      (mockPrisma.bookingRequest.update as jest.Mock).mockResolvedValue({
+        id: `booking-${seed}`,
+        status: 'SEARCHING',
+        searchJobId: 'job-123',
+      });
       (auditService.log as jest.Mock).mockResolvedValue(undefined);
+      (enqueueSearchJob as jest.Mock).mockResolvedValue('job-123');
 
       const result = await bookingService.createDraft('user-1', {
         applicantProfileId: `profile-${seed}`,

@@ -38,12 +38,16 @@ jest.mock('../../../lib/crypto', () => ({
   encrypt: jest.fn().mockReturnValue('encrypted-data'),
 }));
 
+jest.mock('../search.queue', () => ({
+  enqueueSearchJob: jest.fn().mockResolvedValue('job-123'),
+}));
+
+import { enqueueSearchJob } from '../search.queue';
+
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Evitar que _runSearchLoop corra en background durante tests
-  jest.spyOn(bookingService, '_runSearchLoop').mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -65,14 +69,27 @@ describe('bookingService.createDraft', () => {
       id: 'booking-1',
       status: 'SEARCHING',
     });
+    (mockPrisma.bookingRequest.update as jest.Mock).mockResolvedValue({
+      id: 'booking-1',
+      status: 'SEARCHING',
+      searchJobId: 'job-123',
+    });
     (auditService.log as jest.Mock).mockResolvedValue(undefined);
 
     const result = await bookingService.createDraft(userId, data);
 
     expect(result.status).toBe('SEARCHING');
+    expect(result.searchJobId).toBe('job-123');
     expect(mockPrisma.bookingRequest.create as jest.Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'SEARCHING' }),
+      })
+    );
+    expect(enqueueSearchJob).toHaveBeenCalledWith('booking-1');
+    expect(mockPrisma.bookingRequest.update as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'booking-1' },
+        data: { searchJobId: 'job-123' },
       })
     );
   });
@@ -119,13 +136,86 @@ describe('bookingService.createDraft', () => {
     await expect(bookingService.createDraft(userId, data))
       .rejects.toMatchObject({ statusCode: 422, code: 'ELIGIBILITY_FAILED' });
   });
+
+  it('rechaza booking si preferredDateFrom está a menos de 24h', async () => {
+    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: 'profile-1', documentType: 'DNI', nationality: 'ES', birthDate: new Date('1990-01-01') });
+    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({ id: 'proc-1', connector: null, formSchema: { fields: [] }, eligibilityRules: null });
+
+    const tooSoonDate = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(); // 12h from now
+
+    await expect(bookingService.createDraft(userId, { ...data, preferredDateFrom: tooSoonDate }))
+      .rejects.toMatchObject({ statusCode: 422, code: 'DATE_TOO_SOON' });
+
+    expect(mockPrisma.bookingRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('acepta booking si preferredDateFrom está a más de 24h', async () => {
+    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: 'profile-1', documentType: 'DNI', nationality: 'ES', birthDate: new Date('1990-01-01') });
+    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({ id: 'proc-1', connector: null, formSchema: { fields: [] }, eligibilityRules: null });
+    (mockPrisma.bookingRequest.create as jest.Mock).mockResolvedValue({ id: 'booking-1', status: 'SEARCHING' });
+    (mockPrisma.bookingRequest.update as jest.Mock).mockResolvedValue({ id: 'booking-1', status: 'SEARCHING', searchJobId: 'job-123' });
+    (auditService.log as jest.Mock).mockResolvedValue(undefined);
+
+    const validDate = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); // 48h from now
+
+    const result = await bookingService.createDraft(userId, { ...data, preferredDateFrom: validDate });
+    expect(result.status).toBe('SEARCHING');
+  });
+
+  it('rechaza booking si el conector está SUSPENDED', async () => {
+    (mockPrisma.applicantProfile.findFirst as jest.Mock).mockResolvedValue({ id: 'profile-1', documentType: 'DNI', nationality: 'ES', birthDate: new Date('1990-01-01') });
+    (mockPrisma.procedure.findUnique as jest.Mock).mockResolvedValue({
+      id: 'proc-1',
+      connector: { id: 'conn-1', status: 'SUSPENDED', slug: 'extranjeria' },
+      formSchema: { fields: [] },
+      eligibilityRules: null,
+    });
+    (mockPrisma.bookingRequest.create as jest.Mock).mockResolvedValue({
+      id: 'booking-1',
+      status: 'SEARCHING',
+    });
+    (auditService.log as jest.Mock).mockResolvedValue(undefined);
+
+    await expect(bookingService.createDraft(userId, data))
+      .rejects.toMatchObject({ statusCode: 503, code: 'CONNECTOR_SUSPENDED' });
+    expect(enqueueSearchJob).not.toHaveBeenCalled();
+  });
 });
 
 describe('bookingService.confirmAfterPayment', () => {
   const userId = 'user-1';
   const bookingId = 'booking-1';
 
-  it('booking PRE_CONFIRMED → actualiza a CONFIRMED', async () => {
+  it('booking PRE_CONFIRMED → actualiza a CONFIRMED con completedAt', async () => {
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue({
+      id: bookingId,
+      userId,
+      status: 'PRE_CONFIRMED',
+      procedure: { name: 'Trámite X' },
+      appointment: {
+        appointmentDate: new Date('2025-06-01'),
+        appointmentTime: '10:00',
+        location: 'Oficina Central',
+        confirmationCode: 'CONF-123',
+        instructions: 'Traé tu DNI.',
+      },
+    });
+    (mockPrisma.bookingRequest.update as jest.Mock).mockResolvedValue({});
+    (notificationService.send as jest.Mock).mockResolvedValue(undefined);
+
+    const before = Date.now();
+    await bookingService.confirmAfterPayment(bookingId, userId);
+    const after = Date.now();
+
+    const updateCall = (mockPrisma.bookingRequest.update as jest.Mock).mock.calls[0][0];
+    expect(updateCall.where).toEqual({ id: bookingId });
+    expect(updateCall.data.status).toBe('CONFIRMED');
+    expect(updateCall.data.completedAt).toBeInstanceOf(Date);
+    expect(updateCall.data.completedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(updateCall.data.completedAt.getTime()).toBeLessThanOrEqual(after);
+  });
+
+  it('notificación tras pago incluye fecha, hora, ubicación y código de confirmación', async () => {
     (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue({
       id: bookingId,
       userId,
@@ -144,12 +234,41 @@ describe('bookingService.confirmAfterPayment', () => {
 
     await bookingService.confirmAfterPayment(bookingId, userId);
 
-    expect(mockPrisma.bookingRequest.update as jest.Mock).toHaveBeenCalledWith(
+    expect(notificationService.send).toHaveBeenCalledTimes(1);
+    const sendCall = (notificationService.send as jest.Mock).mock.calls[0][0];
+    // Body must include fecha, hora, ubicación, código
+    expect(sendCall.body).toContain('10:00');
+    expect(sendCall.body).toContain('Oficina Central');
+    expect(sendCall.body).toContain('CONF-123');
+    // Body should contain a date representation of 2025-06-01
+    expect(sendCall.body).toMatch(/2025|junio|jun/i);
+    expect(sendCall.userId).toBe(userId);
+    // HTML should also include the details
+    expect(sendCall.html).toBeDefined();
+    expect(sendCall.html).toContain('CONF-123');
+    expect(sendCall.html).toContain('Oficina Central');
+    expect(sendCall.html).toContain('10:00');
+  });
+
+  it('sin appointment no envía notificación', async () => {
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue({
+      id: bookingId,
+      userId,
+      status: 'PRE_CONFIRMED',
+      procedure: { name: 'Trámite X' },
+      appointment: null,
+    });
+    (mockPrisma.bookingRequest.update as jest.Mock).mockResolvedValue({});
+
+    await bookingService.confirmAfterPayment(bookingId, userId);
+
+    expect(mockPrisma.bookingRequest.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: bookingId },
-        data: expect.objectContaining({ status: 'CONFIRMED' }),
+        data: expect.objectContaining({ status: 'CONFIRMED', completedAt: expect.any(Date) }),
       })
     );
+    expect(notificationService.send).not.toHaveBeenCalled();
   });
 
   it('booking no encontrado lanza AppError 404', async () => {
@@ -373,5 +492,86 @@ describe('bookingService.validateBooking', () => {
     expect(result.eligibilityResult.eligible).toBe(false);
     // Al menos: 4 campos faltantes + edad + documento
     expect(result.validationResult.errors.length).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe('bookingService.getBookingById', () => {
+  const userId = 'user-1';
+  const bookingId = 'booking-1';
+
+  const baseAppointment = {
+    id: 'appt-1',
+    bookingRequestId: bookingId,
+    confirmationCode: 'CONF-SECRET',
+    appointmentDate: new Date('2025-07-01'),
+    appointmentTime: '10:00',
+    location: 'Oficina Central, Madrid',
+    instructions: 'Traé tu documentación original.',
+  };
+
+  const makeFullBooking = (status: string) => ({
+    id: bookingId,
+    userId,
+    status,
+    procedure: { id: 'proc-1', name: 'Trámite X', organization: {}, requirements: [] },
+    applicantProfile: { id: 'profile-1', firstName: 'Juan', lastName: 'Pérez' },
+    appointment: { ...baseAppointment },
+    payment: null,
+    bookingAttempts: [],
+    documentFiles: [],
+  });
+
+  it('booking no encontrado lanza AppError 404', async () => {
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(bookingService.getBookingById(bookingId, userId))
+      .rejects.toMatchObject({ statusCode: 404, code: 'BOOKING_NOT_FOUND' });
+  });
+
+  it('PRE_CONFIRMED: oculta confirmationCode y location del appointment', async () => {
+    const booking = makeFullBooking('PRE_CONFIRMED');
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+
+    const result = await bookingService.getBookingById(bookingId, userId) as any;
+
+    expect(result.status).toBe('PRE_CONFIRMED');
+    expect(result.appointment).toBeDefined();
+    expect(result.appointment.confirmationCode).toBeNull();
+    expect(result.appointment.location).toBeNull();
+    // Los demás campos del appointment deben seguir presentes
+    expect(result.appointment.appointmentDate).toEqual(new Date('2025-07-01'));
+    expect(result.appointment.appointmentTime).toBe('10:00');
+    expect(result.appointment.instructions).toBe('Traé tu documentación original.');
+  });
+
+  it('CONFIRMED: incluye todos los detalles del appointment', async () => {
+    const booking = makeFullBooking('CONFIRMED');
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+
+    const result = await bookingService.getBookingById(bookingId, userId) as any;
+
+    expect(result.status).toBe('CONFIRMED');
+    expect(result.appointment.confirmationCode).toBe('CONF-SECRET');
+    expect(result.appointment.location).toBe('Oficina Central, Madrid');
+  });
+
+  it('SEARCHING: incluye todos los detalles del appointment si existe', async () => {
+    const booking = makeFullBooking('SEARCHING');
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+
+    const result = await bookingService.getBookingById(bookingId, userId) as any;
+
+    expect(result.appointment.confirmationCode).toBe('CONF-SECRET');
+    expect(result.appointment.location).toBe('Oficina Central, Madrid');
+  });
+
+  it('PRE_CONFIRMED sin appointment: retorna booking sin error', async () => {
+    const booking = { ...makeFullBooking('PRE_CONFIRMED'), appointment: null };
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue(booking);
+
+    const result = await bookingService.getBookingById(bookingId, userId) as any;
+
+    expect(result.status).toBe('PRE_CONFIRMED');
+    expect(result.appointment).toBeNull();
   });
 });

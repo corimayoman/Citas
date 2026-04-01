@@ -113,4 +113,37 @@ describe('paymentService.createCheckoutSession', () => {
     await expect(paymentService.createCheckoutSession(userId, bookingRequestId))
       .rejects.toMatchObject({ statusCode: 409, code: 'NOT_PRE_CONFIRMED' });
   });
+
+  it('paymentDeadline vencido lanza AppError 422 PAYMENT_DEADLINE_EXPIRED', async () => {
+    const pastDeadline = new Date(Date.now() - 60_000); // 1 minuto en el pasado
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue({
+      id: bookingRequestId,
+      userId,
+      status: 'PRE_CONFIRMED',
+      paymentDeadline: pastDeadline,
+      procedure: { name: 'Trámite', serviceFee: 100, currency: 'ARS' },
+    });
+
+    await expect(paymentService.createCheckoutSession(userId, bookingRequestId))
+      .rejects.toMatchObject({ statusCode: 422, code: 'PAYMENT_DEADLINE_EXPIRED' });
+  });
+});
+
+describe('paymentService.createDemoCheckout — deadline', () => {
+  const userId = 'user-1';
+  const bookingRequestId = 'booking-1';
+
+  it('paymentDeadline vencido lanza AppError 422 PAYMENT_DEADLINE_EXPIRED', async () => {
+    const pastDeadline = new Date(Date.now() - 60_000);
+    (mockPrisma.bookingRequest.findFirst as jest.Mock).mockResolvedValue({
+      id: bookingRequestId,
+      userId,
+      status: 'PRE_CONFIRMED',
+      paymentDeadline: pastDeadline,
+      procedure: { name: 'Trámite Demo', serviceFee: 50, currency: 'ARS' },
+    });
+
+    await expect(paymentService.createDemoCheckout(userId, bookingRequestId))
+      .rejects.toMatchObject({ statusCode: 422, code: 'PAYMENT_DEADLINE_EXPIRED' });
+  });
 });
