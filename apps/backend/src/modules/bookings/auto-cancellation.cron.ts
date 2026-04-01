@@ -17,6 +17,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { AuditAction, UserRole } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
+import { getBullMQConnection } from '../../lib/redis';
 import { connectorRegistry } from '../connectors/connector.registry';
 import { notificationService } from '../notifications/notification.service';
 import { auditService } from '../audit/audit.service';
@@ -218,17 +219,8 @@ async function notifyOperators(
 // ── Start function ───────────────────────────────────────────────────────────
 
 export function startAutoCancellationCron(): { queue: Queue; worker: Worker } {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  const parsedUrl = new URL(redisUrl);
-
-  const connection = {
-    host: parsedUrl.hostname,
-    port: Number(parsedUrl.port) || 6379,
-    password: parsedUrl.password || undefined,
-  };
-
   const queue = new Queue(AUTO_CANCEL_QUEUE_NAME, {
-    connection,
+    ...getBullMQConnection(),
     defaultJobOptions: {
       removeOnComplete: true,
       removeOnFail: false,
@@ -244,7 +236,7 @@ export function startAutoCancellationCron(): { queue: Queue; worker: Worker } {
   const worker = new Worker(
     AUTO_CANCEL_QUEUE_NAME,
     processAutoCancellation,
-    { connection, concurrency: 1 },
+    { ...getBullMQConnection(), concurrency: 1 },
   );
 
   worker.on('error', (err) => {

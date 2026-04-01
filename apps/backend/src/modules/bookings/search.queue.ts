@@ -1,5 +1,6 @@
 import { Queue } from 'bullmq';
 import { logger } from '../../lib/logger';
+import { getBullMQConnection } from '../../lib/redis';
 
 export const SEARCH_QUEUE_NAME = 'booking-search';
 
@@ -16,13 +17,8 @@ let searchQueue: Queue | null = null;
 
 function getSearchQueue(): Queue {
   if (!searchQueue) {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     searchQueue = new Queue(SEARCH_QUEUE_NAME, {
-      connection: {
-        host: new URL(redisUrl).hostname,
-        port: Number(new URL(redisUrl).port) || 6379,
-        password: new URL(redisUrl).password || undefined,
-      },
+      ...getBullMQConnection(),
       defaultJobOptions: {
         attempts: SEARCH_QUEUE_CONFIG.maxAttempts,
         backoff: SEARCH_QUEUE_CONFIG.backoff,

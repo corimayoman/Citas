@@ -19,6 +19,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { AuditAction } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
+import { getBullMQConnection } from '../../lib/redis';
 import { auditService } from '../audit/audit.service';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -106,17 +107,8 @@ export async function processDataPurge(_job: Job): Promise<void> {
 // ── Start function ───────────────────────────────────────────────────────────
 
 export function startDataPurgeCron(): { queue: Queue; worker: Worker } {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  const parsedUrl = new URL(redisUrl);
-
-  const connection = {
-    host: parsedUrl.hostname,
-    port: Number(parsedUrl.port) || 6379,
-    password: parsedUrl.password || undefined,
-  };
-
   const queue = new Queue(DATA_PURGE_QUEUE_NAME, {
-    connection,
+    ...getBullMQConnection(),
     defaultJobOptions: {
       removeOnComplete: true,
       removeOnFail: false,
@@ -132,7 +124,7 @@ export function startDataPurgeCron(): { queue: Queue; worker: Worker } {
   const worker = new Worker(
     DATA_PURGE_QUEUE_NAME,
     processDataPurge,
-    { connection, concurrency: 1 },
+    { ...getBullMQConnection(), concurrency: 1 },
   );
 
   worker.on('error', (err) => {

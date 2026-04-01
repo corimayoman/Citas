@@ -19,6 +19,7 @@
 import { Worker, Job } from 'bullmq';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
+import { getBullMQConnection } from '../../lib/redis';
 import { connectorRegistry } from '../connectors/connector.registry';
 import { circuitBreakerService } from '../connectors/circuit-breaker.service';
 import { CircuitBreakerError } from '../connectors/adapters/base-real.connector';
@@ -363,18 +364,11 @@ async function onSearchJobFailed(
 // ── Start worker ─────────────────────────────────────────────────────────────
 
 export function startSearchWorker(): Worker<SearchJobData> {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  const parsedUrl = new URL(redisUrl);
-
   const worker = new Worker<SearchJobData>(
     SEARCH_QUEUE_NAME,
     processSearchJob,
     {
-      connection: {
-        host: parsedUrl.hostname,
-        port: Number(parsedUrl.port) || 6379,
-        password: parsedUrl.password || undefined,
-      },
+      ...getBullMQConnection(),
       concurrency: SEARCH_QUEUE_CONFIG.concurrency,
     },
   );
