@@ -87,11 +87,54 @@ La automatización solo se activa cuando no viola los Términos de Servicio del 
 
 ## Arquitectura de deployment
 
-![Arquitectura de deployment](docs/diagrams/deployment.svg)
+```mermaid
+graph LR
+  subgraph GitHub
+    qa[branch: qa]
+    main[branch: main]
+  end
+
+  subgraph Railway QA
+    BQA[Backend QA]
+    FQA[Frontend QA]
+    PQA[(Postgres QA)]
+    RQA[(Redis QA)]
+  end
+
+  subgraph Railway Production
+    BP[Backend Prod]
+    FP[Frontend Prod]
+    PP[(Postgres Prod)]
+    RP[(Redis Prod)]
+  end
+
+  qa -- push --> BQA & FQA
+  BQA --- PQA & RQA
+  main -- push --> BP & FP
+  BP --- PP & RP
+
+  subgraph Servicios externos
+    SG[SendGrid]
+    TW[Twilio]
+    ST[Stripe]
+  end
+
+  BQA -. email .-> SG
+  BQA -. sms .-> TW
+  BQA -. pagos .-> ST
+  BP -. email .-> SG
+  BP -. pagos .-> ST
+```
 
 ### Flujo de deploy
 
-![Flujo de deploy](docs/diagrams/deploy-flow.svg)
+```mermaid
+graph LR
+  F[feature/xxx] -->|gw promote qa| QA[qa]
+  QA -->|gw promote prod| M[main]
+  QA -->|auto-deploy| RQA[Railway QA]
+  M -->|auto-deploy| RP[Railway Production]
+```
 
 ### Servicios externos
 
@@ -134,7 +177,44 @@ Antes de reservar un turno, necesitás crear un perfil con los datos de la perso
 
 #### Flujo de reserva (diagrama)
 
-![Flujo de reserva](docs/diagrams/booking-sequence.svg)
+```mermaid
+sequenceDiagram
+    actor U as Usuario
+    participant F as Frontend
+    participant B as Backend
+    participant C as Connector
+    participant S as Stripe
+    participant N as SendGrid
+
+    U->>F: Elige trámite + perfil + fechas
+    F->>B: POST /bookings (DRAFT)
+    B-->>F: booking creado
+
+    U->>F: Click "Pagar"
+    F->>B: POST /payments/checkout
+    B->>S: Crear sesión Checkout
+    S-->>B: session_id
+    B-->>F: redirect URL
+    F->>S: Redirect a Stripe
+    S-->>F: Pago completado
+    S->>B: Webhook checkout.session.completed
+    B->>B: Booking → SEARCHING
+
+    loop Búsqueda automática
+        B->>C: getAvailability()
+        C-->>B: slot disponible
+    end
+
+    B->>B: Booking → PRE_CONFIRMED
+    B->>N: Email "Cita disponible"
+    N-->>U: 📧 Notificación
+
+    U->>F: Click "Confirmar"
+    F->>B: POST /bookings/:id/confirm-payment
+    B->>B: Booking → CONFIRMED
+    B->>N: Email "Cita confirmada"
+    N-->>U: 📧 Detalles del turno
+```
 
 ### Configurar notificaciones
 
@@ -280,7 +360,65 @@ Ver estado de integraciones en [MOCKS.md](./MOCKS.md).
 
 ### Diagrama de entidades
 
-![Diagrama ER](docs/diagrams/er-diagram.svg)
+```mermaid
+erDiagram
+    User ||--o{ RefreshToken : has
+    User ||--o{ ApplicantProfile : has
+    User ||--o{ BookingRequest : creates
+    User ||--o{ Payment : makes
+    User ||--o{ Notification : receives
+    User ||--o{ AuditLog : generates
+
+    ApplicantProfile ||--o{ DocumentFile : attaches
+
+    BookingRequest ||--o{ BookingAttempt : has
+    BookingRequest ||--o| Appointment : resolves_to
+    BookingRequest ||--o| Payment : requires
+    BookingRequest ||--o{ DocumentFile : attaches
+
+    Payment ||--o| Invoice : generates
+
+    Organization ||--o{ Procedure : offers
+    Organization ||--o{ Connector : has
+
+    Procedure ||--o{ ProcedureRequirement : defines
+
+    Connector ||--o{ ConnectorCapability : has
+    Connector ||--o{ ComplianceReview : reviewed_by
+
+    User {
+        uuid id PK
+        string email UK
+        enum role
+        enum notificationChannel
+        boolean mfaEnabled
+        boolean consentGiven
+    }
+
+    BookingRequest {
+        uuid id PK
+        enum status
+        json formData
+        datetime preferredDateFrom
+        datetime preferredDateTo
+        string externalRef
+    }
+
+    Payment {
+        uuid id PK
+        enum status
+        decimal amount
+        string currency
+        string stripeSessionId
+    }
+
+    Connector {
+        uuid id PK
+        string name
+        enum integrationType
+        boolean isActive
+    }
+```
 
 ### Entidades principales
 
@@ -326,7 +464,24 @@ Solicitud de turno de un usuario para un trámite específico.
 
 ### Estados de booking
 
-![Estados de booking](docs/diagrams/booking-states.svg)
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> SEARCHING : pagar
+    SEARCHING --> PRE_CONFIRMED : cita encontrada
+    PRE_CONFIRMED --> CONFIRMED : confirmar
+    PRE_CONFIRMED --> EXPIRED : deadline vencido
+    CONFIRMED --> COMPLETED : turno realizado
+    SEARCHING --> REQUIRES_USER_ACTION : modo asistido
+
+    DRAFT --> CANCELLED
+    SEARCHING --> CANCELLED
+    PRE_CONFIRMED --> CANCELLED
+    CONFIRMED --> CANCELLED
+    SEARCHING --> ERROR
+    CONFIRMED --> REFUNDED
+    CANCELLED --> REFUNDED
+```
 
 | Valor | Significado | Próxima acción |
 |-------|-------------|----------------|
@@ -343,7 +498,14 @@ Solicitud de turno de un usuario para un trámite específico.
 
 ### Estados de pago
 
-![Estados de pago](docs/diagrams/payment-states.svg)
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : checkout creado
+    PENDING --> PAID : Stripe confirma
+    PENDING --> FAILED : rechazado / expirado
+    PAID --> REFUNDED : reembolso completo
+    PAID --> PARTIALLY_REFUNDED : reembolso parcial
+```
 
 | Valor | Significado |
 |-------|-------------|
@@ -405,41 +567,10 @@ Docs interactivos: `http://localhost:3001/api/docs`
 | Método | Endpoint | Auth | Descripción |
 |--------|----------|------|-------------|
 | `GET` | `/bookings` | Bearer | Listar propios (paginado) |
-| `POST` | `/bookings` | Bearer | Crear booking (valida elegibilidad antes de crear) |
+| `POST` | `/bookings` | Bearer | Crear booking draft |
 | `GET` | `/bookings/:id` | Bearer | Detalle con intentos y turno |
-| `POST` | `/bookings/:id/validate` | Bearer | Verificar elegibilidad del solicitante |
+| `POST` | `/bookings/:id/validate` | Bearer | Verificar elegibilidad |
 | `POST` | `/bookings/:id/confirm-payment` | Bearer | Confirmar turno tras `PRE_CONFIRMED` |
-
-#### Validación de elegibilidad (`POST /bookings/:id/validate`)
-
-Antes de avanzar con un booking, este endpoint valida que el solicitante cumple los requisitos del trámite:
-
-| Validación | Fuente | Ejemplo de error |
-|------------|--------|-----------------|
-| Campos requeridos del formulario | `procedure.formSchema.fields[].required` | "Campo requerido: Número de documento" |
-| Edad mínima / máxima | `procedure.eligibilityRules.minAge` / `maxAge` | "Edad mínima requerida: 18 años (el solicitante tiene 16)" |
-| Tipo de documento | `procedure.eligibilityRules.requiredDocuments` | "Tipo de documento no válido: Cédula. Se requiere: DNI, NIE" |
-| Nacionalidad permitida | `procedure.eligibilityRules.allowedNationalities` | "Nacionalidad no habilitada para este trámite" |
-| Nacionalidad excluida | `procedure.eligibilityRules.excludedNationalities` | "Nacionalidad excluida de este trámite" |
-| Requisitos del procedimiento | `procedure_requirements` (tipo `field` / `document`) | "Requisito obligatorio no completado: NAF" |
-
-Respuesta:
-```json
-{
-  "validationResult": {
-    "isValid": false,
-    "missingFields": ["naf", "bankAccount"],
-    "errors": ["Campo requerido: NAF", "Edad mínima requerida: 18 años (el solicitante tiene 16)"],
-    "warnings": ["Documento requerido para la cita: DNI original — En vigor"]
-  },
-  "eligibilityResult": {
-    "checked": true,
-    "eligible": false,
-    "errors": ["Edad mínima requerida: 18 años (el solicitante tiene 16)"],
-    "warnings": []
-  }
-}
-```
 
 ### Pagos
 
@@ -498,7 +629,22 @@ Respuesta:
 
 Cada conector debe pasar una revisión de compliance antes de operar en modo automatizado. El motor aplica reglas no negociables:
 
-![Motor de compliance](docs/diagrams/compliance.svg)
+```mermaid
+flowchart TD
+    Start([Revisión de compliance]) --> CaptchaCheck{¿Requiere bypass\nde CAPTCHA?}
+    CaptchaCheck -->|Sí| BLOCKED[🚫 MANUAL_ASSISTED\nCRITICAL — no se puede activar]
+    CaptchaCheck -->|No| AntiBotCheck{¿Requiere evasión\nanti-bot?}
+    AntiBotCheck -->|Sí| BLOCKED
+    AntiBotCheck -->|No| RateLimitCheck{¿Requiere evasión\nde rate limit?}
+    RateLimitCheck -->|Sí| BLOCKED
+    RateLimitCheck -->|No| AuthBypassCheck{¿Requiere bypass\nde auth?}
+    AuthBypassCheck -->|Sí| BLOCKED
+    AuthBypassCheck -->|No| ApiCheck{¿Tiene API oficial\n+ docs + ToS?}
+    ApiCheck -->|Sí| OFFICIAL[✅ OFFICIAL_API\nRiesgo: LOW]
+    ApiCheck -->|No| AuthIntCheck{¿Integración\nautorizada + ToS?}
+    AuthIntCheck -->|Sí| AUTHORIZED[⚠️ AUTHORIZED_INTEGRATION\nRiesgo: MEDIUM]
+    AuthIntCheck -->|No| MANUAL[📋 MANUAL_ASSISTED\nRiesgo: HIGH]
+```
 
 Las revisiones se almacenan en `ComplianceReview` y expiran al año. Los conectores deben re-revisarse anualmente.
 
