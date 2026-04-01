@@ -13,10 +13,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (_hasHydrated && !user) router.push('/login');
   }, [user, _hasHydrated, router]);
 
-  if (!_hasHydrated || !user) return null;
+  if (!_hasHydrated) return null;
+  if (!user) return null;
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-muted">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
