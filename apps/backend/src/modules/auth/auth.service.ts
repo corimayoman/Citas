@@ -128,7 +128,7 @@ export const authService = {
 
     if (!isDemoMode) {
       const frontendUrl = process.env.FRONTEND_URL ?? 'https://citas-frontend-production-f2ef.up.railway.app';
-      const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
+      const verificationUrl = `${frontendUrl}/auth/verify-email?token=${token}`;
       try {
         await sendMail({
           to: user.email,
