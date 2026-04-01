@@ -138,6 +138,9 @@ export const circuitBreakerService = {
 
     // Notify all OPERATOR and ADMIN users
     await this._notifyOperators(connectorId, connector.name, reason);
+
+    // Cascade: move SEARCHING bookings to ERROR and notify affected users (Req 7.6)
+    await this._cascadeSearchingToError(connectorId, connector.name);
   },
 
   /**
@@ -229,6 +232,58 @@ export const circuitBreakerService = {
           title,
           body,
           metadata: { connectorId, reason, type: 'CIRCUIT_BREAKER_SUSPENSION' },
+        }),
+      ),
+    );
+  },
+
+  /**
+   * Cascade SEARCHING → ERROR when a connector is suspended (Req 7.6).
+   * Finds all SEARCHING bookings for this connector, moves them to ERROR,
+   * and notifies the affected users.
+   */
+  async _cascadeSearchingToError(
+    connectorId: string,
+    connectorName: string,
+  ): Promise<void> {
+    // Find all SEARCHING bookings whose procedure uses this connector
+    const affectedBookings = await prisma.bookingRequest.findMany({
+      where: {
+        status: 'SEARCHING',
+        procedure: { connectorId },
+      },
+      select: { id: true, userId: true, procedure: { select: { name: true } } },
+    });
+
+    if (affectedBookings.length === 0) return;
+
+    const bookingIds = affectedBookings.map((b) => b.id);
+
+    // Bulk-update all affected bookings to ERROR
+    await prisma.bookingRequest.updateMany({
+      where: { id: { in: bookingIds } },
+      data: { status: 'ERROR' },
+    });
+
+    logger.info(
+      `CircuitBreaker: moved ${affectedBookings.length} SEARCHING booking(s) to ERROR for connector ${connectorId}`,
+    );
+
+    // Notify each affected user
+    await Promise.allSettled(
+      affectedBookings.map((booking) =>
+        notificationService.send({
+          userId: booking.userId,
+          title: 'Búsqueda de cita interrumpida',
+          body:
+            `La búsqueda de cita para "${booking.procedure.name}" fue interrumpida ` +
+            `porque el servicio del portal (${connectorName}) está temporalmente no disponible. ` +
+            `Te notificaremos cuando se restablezca el servicio.`,
+          metadata: {
+            bookingId: booking.id,
+            connectorId,
+            reason: 'CONNECTOR_SUSPENDED',
+          },
         }),
       ),
     );

@@ -115,6 +115,20 @@ async function cancelExpiredBooking(
       // Alert operations (OPERATOR / ADMIN)
       await notifyOperators(bookingId, booking.procedure.name, connector!.name);
 
+      // Notify the user that their booking has an issue
+      await notificationService.send({
+        userId: booking.userId,
+        title: 'Problema con la cancelación de tu cita',
+        body:
+          `Hubo un problema al intentar cancelar automáticamente tu cita para "${booking.procedure.name}". ` +
+          `Nuestro equipo de operaciones ha sido notificado y está trabajando para resolverlo. ` +
+          `Te contactaremos con más información.`,
+        metadata: {
+          bookingId,
+          reason: 'AUTO_CANCEL_FAILED',
+        },
+      });
+
       logger.error('AutoCancellation: portal cancel failed, moved to ERROR', {
         bookingId,
       });
