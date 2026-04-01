@@ -22,6 +22,7 @@ import paymentRoutes from './modules/payments/payment.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import complianceRoutes from './modules/compliance/compliance.routes';
+import emailInterceptionRoutes from './modules/email-interception/email-interception.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -68,6 +69,9 @@ app.use('/api/auth/', authLimiter);
 // ─── Body parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// ─── Webhook routes (no auth — external services) ─────────────────────────────
+app.use('/webhooks', emailInterceptionRoutes);
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
 app.use(requestLogger);
@@ -132,6 +136,17 @@ async function bootstrap() {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`Swagger docs: http://localhost:${PORT}/api/docs`);
     });
+
+    // ─── Start BullMQ workers and cron jobs ─────────────────────────────────
+    const { startSearchWorker } = await import('./modules/bookings/search.worker');
+    const { startAutoCancellationCron } = await import('./modules/bookings/auto-cancellation.cron');
+    const { startDataPurgeCron } = await import('./modules/bookings/data-purge.cron');
+
+    startSearchWorker();
+    startAutoCancellationCron();
+    startDataPurgeCron();
+
+    logger.info('BullMQ workers and cron jobs started');
   } catch (error) {
     logger.error('Failed to start server', error);
     process.exit(1);
