@@ -1,10 +1,12 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { api } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Calendar, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronRight, CheckCircle } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   DRAFT:                { label: 'Borrador',           color: 'bg-secondary text-muted-foreground' },
@@ -22,6 +24,17 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 export default function BookingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <BookingsContent />
+    </Suspense>
+  );
+}
+
+function BookingsContent() {
+  const searchParams = useSearchParams();
+  const justCreated = searchParams.get('created') === '1';
+
   const { data, isLoading } = useQuery({
     queryKey: ['bookings'],
     queryFn: () => api.get('/bookings').then(r => r.data.data),
@@ -31,6 +44,12 @@ export default function BookingsPage() {
 
   return (
     <div className="space-y-6">
+      {justCreated && (
+        <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-md p-3 text-sm text-emerald-700">
+          <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>Tu solicitud fue creada. Estamos buscando una cita disponible dentro de tus preferencias. Te notificaremos cuando la encontremos.</span>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-foreground">Mis citas y expedientes</h2>

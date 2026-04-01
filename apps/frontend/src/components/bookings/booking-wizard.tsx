@@ -83,9 +83,8 @@ export function BookingWizard({ procedure }: WizardProps) {
       preferredDateTo: preferredDateTo || undefined,
       preferredTimeSlot: preferredTimeSlot || undefined,
     }),
-    onSuccess: (res) => {
-      // Redirigir al detalle — ahí se ve el estado SEARCHING y luego PRE_CONFIRMED
-      router.push(`/bookings/${res.data.data.id}`);
+    onSuccess: () => {
+      router.push('/bookings?created=1');
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.error?.message || 'Error al crear el expediente. Intentá de nuevo.';
