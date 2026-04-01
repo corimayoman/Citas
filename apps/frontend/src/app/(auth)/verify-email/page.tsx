@@ -1,10 +1,9 @@
 'use client';
-// v2
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
-function VerifyEmailContent() {
+export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -30,44 +29,32 @@ function VerifyEmailContent() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="bg-card rounded-xl border border-border p-8 max-w-md w-full text-center space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white rounded-xl border p-8 max-w-md w-full text-center space-y-4">
         {status === 'loading' && (
           <>
             <div className="text-4xl">⏳</div>
-            <p className="text-muted-foreground">Verificando tu email...</p>
+            <p className="text-gray-600">Verificando tu email...</p>
           </>
         )}
         {status === 'success' && (
           <>
             <div className="text-4xl">✅</div>
-            <h1 className="text-xl font-semibold text-foreground">Email verificado</h1>
-            <p className="text-muted-foreground text-sm">Tu cuenta está activa. Redirigiendo al login...</p>
+            <h1 className="text-xl font-semibold text-gray-900">Email verificado</h1>
+            <p className="text-gray-500 text-sm">Tu cuenta está activa. Redirigiendo al login...</p>
           </>
         )}
         {status === 'error' && (
           <>
             <div className="text-4xl">❌</div>
-            <h1 className="text-xl font-semibold text-foreground">Error de verificación</h1>
-            <p className="text-muted-foreground text-sm">{message}</p>
-            <a href="/login" className="inline-block mt-2 text-sm text-primary hover:underline">
+            <h1 className="text-xl font-semibold text-gray-900">Error de verificación</h1>
+            <p className="text-gray-500 text-sm">{message}</p>
+            <a href="/login" className="inline-block mt-2 text-sm text-blue-600 hover:underline">
               Ir al login
             </a>
           </>
         )}
       </div>
     </div>
-  );
-}
-
-export default function VerifyEmailPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-4xl">⏳</div>
-      </div>
-    }>
-      <VerifyEmailContent />
-    </Suspense>
   );
 }

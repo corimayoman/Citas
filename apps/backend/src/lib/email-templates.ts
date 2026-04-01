@@ -1,43 +1,21 @@
 /**
  * Email HTML templates — Gestor de Citas Oficiales
- * Paleta centralizada: cambiar aquí para actualizar todos los emails.
+ * Issue #25
  */
 
 const BASE_URL = process.env.FRONTEND_URL ?? 'https://citas-frontend-production-f2ef.up.railway.app';
 
-// ─── Paleta centralizada (sincronizar con tailwind.config.ts) ────────────────
-const P = {
-  bg:          '#EFF6FF',
-  card:        '#FFFFFF',
-  border:      '#BFDBFE',
-  muted:       '#DBEAFE',
-  mutedFg:     '#64748B',
-  fg:          '#0F172A',
-  primary:     '#FF0A6C',
-  primaryLight:'#FF3D8A',
-  primaryDeep: '#CC0055',
-  success:     '#059669',
-  successLight:'#D1FAE5',
-  successFg:   '#065F46',
-  successCode: '#047857',
-  warning:     '#D97706',
-  warningLight:'#FEF3C7',
-  warningFg:   '#92400E',
-  infoLight:   '#DBEAFE',
-  infoFg:      '#1E40AF',
-};
-
 const layout = (content: string) => `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:${P.bg};font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:${P.bg};padding:40px 20px">
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 20px">
     <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:${P.card};border-radius:12px;overflow:hidden;border:1px solid ${P.border};box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
         ${content}
         <tr>
-          <td style="background:${P.bg};padding:24px 40px;border-top:1px solid ${P.border};text-align:center">
-            <p style="color:${P.mutedFg};font-size:12px;margin:0;line-height:1.6">
+          <td style="background:#f8fafc;padding:24px 40px;border-top:1px solid #e2e8f0;text-align:center">
+            <p style="color:#94a3b8;font-size:12px;margin:0">
               Gestor de Citas Oficiales · Servicio intermediario independiente<br>
               No afiliado ni autorizado por ningún organismo gubernamental
             </p>
@@ -60,41 +38,41 @@ export function citaDisponibleHtml(params: {
 
   return layout(`
     <tr>
-      <td style="background:linear-gradient(135deg,${P.primary},${P.primaryDeep});padding:32px 40px;text-align:center">
+      <td style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 40px;text-align:center">
         <div style="font-size:32px;margin-bottom:8px">📅</div>
         <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700">Gestor de Citas Oficiales</h1>
       </td>
     </tr>
     <tr>
-      <td style="background:${P.warningLight};padding:16px 40px;border-bottom:1px solid ${P.border}">
+      <td style="background:#fef3c7;padding:16px 40px;border-bottom:1px solid #fde68a">
         <table width="100%" cellpadding="0" cellspacing="0"><tr>
           <td width="24" style="vertical-align:middle"><span style="font-size:20px">⏰</span></td>
-          <td style="padding-left:12px;color:${P.warningFg};font-size:14px;font-weight:600">Tenés tiempo limitado para confirmar esta cita</td>
+          <td style="padding-left:12px;color:#92400e;font-size:14px;font-weight:600">Tenés tiempo limitado para confirmar esta cita</td>
         </tr></table>
       </td>
     </tr>
     <tr>
       <td style="padding:40px">
-        <h2 style="color:${P.fg};font-size:20px;margin:0 0 8px">¡Encontramos tu cita!</h2>
-        <p style="color:${P.mutedFg};font-size:15px;margin:0 0 32px">
-          Hay un turno disponible para <strong style="color:${P.fg}">${params.procedureName}</strong>.
+        <h2 style="color:#1e293b;font-size:20px;margin:0 0 8px">¡Encontramos tu cita!</h2>
+        <p style="color:#64748b;font-size:15px;margin:0 0 32px">
+          Hay un turno disponible para <strong style="color:#1e293b">${params.procedureName}</strong>.
           Completá el pago para reservarlo antes de que expire.
         </p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:${P.bg};border:1px solid ${P.border};border-radius:8px;margin-bottom:32px">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:32px">
           <tr><td style="padding:24px">
             <table width="100%" cellpadding="0" cellspacing="0">
-              <tr><td style="padding:8px 0;border-bottom:1px solid ${P.border}">
+              <tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f0">
                 <table width="100%" cellpadding="0" cellspacing="0"><tr>
-                  <td style="color:${P.mutedFg};font-size:13px;width:40px">🗂️</td>
-                  <td style="color:${P.mutedFg};font-size:13px">Trámite</td>
-                  <td align="right" style="color:${P.fg};font-size:14px;font-weight:600">${params.procedureName}</td>
+                  <td style="color:#64748b;font-size:13px;width:40px">🗂️</td>
+                  <td style="color:#64748b;font-size:13px">Trámite</td>
+                  <td align="right" style="color:#1e293b;font-size:14px;font-weight:600">${params.procedureName}</td>
                 </tr></table>
               </td></tr>
               <tr><td style="padding:8px 0">
                 <table width="100%" cellpadding="0" cellspacing="0"><tr>
-                  <td style="color:${P.mutedFg};font-size:13px;width:40px">⏳</td>
-                  <td style="color:${P.mutedFg};font-size:13px">Pagar antes del</td>
-                  <td align="right" style="color:${P.primary};font-size:14px;font-weight:700">${params.paymentDeadline}</td>
+                  <td style="color:#64748b;font-size:13px;width:40px">⏳</td>
+                  <td style="color:#64748b;font-size:13px">Pagar antes del</td>
+                  <td align="right" style="color:#dc2626;font-size:14px;font-weight:700">${params.paymentDeadline}</td>
                 </tr></table>
               </td></tr>
             </table>
@@ -102,12 +80,12 @@ export function citaDisponibleHtml(params: {
         </table>
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr><td align="center">
-            <a href="${paymentUrl}" style="display:inline-block;background:${P.primary};color:#ffffff;text-decoration:none;padding:16px 48px;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:0.3px">
+            <a href="${paymentUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:16px 48px;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:0.3px">
               💳 &nbsp; Confirmar y pagar
             </a>
           </td></tr>
         </table>
-        <p style="color:${P.mutedFg};font-size:12px;text-align:center;margin:24px 0 0">
+        <p style="color:#94a3b8;font-size:12px;text-align:center;margin:24px 0 0">
           Si no pagás antes del plazo, la cita se libera automáticamente.
         </p>
       </td>
@@ -130,7 +108,7 @@ export function citaConfirmadaHtml(params: {
 
   return layout(`
     <tr>
-      <td style="background:linear-gradient(135deg,${P.success},#047857);padding:32px 40px;text-align:center">
+      <td style="background:linear-gradient(135deg,#059669,#047857);padding:32px 40px;text-align:center">
         <div style="font-size:48px;margin-bottom:8px">✅</div>
         <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700">¡Cita confirmada!</h1>
         <p style="color:#a7f3d0;margin:8px 0 0;font-size:15px">${params.procedureName}</p>
@@ -138,44 +116,44 @@ export function citaConfirmadaHtml(params: {
     </tr>
     <tr>
       <td style="padding:40px">
-        <p style="color:${P.mutedFg};font-size:15px;margin:0 0 24px">
+        <p style="color:#64748b;font-size:15px;margin:0 0 24px">
           Tu turno está reservado. Guardá los detalles y presentate con tu documentación.
         </p>
-        <table width="100%" cellpadding="0" cellspacing="0" style="border:2px solid ${P.success};border-radius:12px;overflow:hidden;margin-bottom:32px">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #059669;border-radius:12px;overflow:hidden;margin-bottom:32px">
           <tr>
-            <td style="background:${P.successLight};padding:16px 24px;border-bottom:2px dashed ${P.success}">
+            <td style="background:#ecfdf5;padding:16px 24px;border-bottom:2px dashed #059669">
               <table width="100%" cellpadding="0" cellspacing="0"><tr>
-                <td style="color:${P.successFg};font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px">🎫 &nbsp; Comprobante de cita</td>
-                <td align="right" style="color:${P.success};font-size:13px;font-weight:700"># ${params.confirmationCode}</td>
+                <td style="color:#065f46;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px">🎫 &nbsp; Comprobante de cita</td>
+                <td align="right" style="color:#059669;font-size:13px;font-weight:700"># ${params.confirmationCode}</td>
               </tr></table>
             </td>
           </tr>
-          <tr><td style="padding:24px;background:${P.card}">
+          <tr><td style="padding:24px">
             <table width="100%" cellpadding="0" cellspacing="0">
-              <tr><td style="padding:10px 0;border-bottom:1px solid ${P.border}">
+              <tr><td style="padding:10px 0;border-bottom:1px solid #f1f5f9">
                 <table width="100%" cellpadding="0" cellspacing="0"><tr>
                   <td style="font-size:22px;width:40px">📅</td>
                   <td>
-                    <div style="color:${P.mutedFg};font-size:12px;text-transform:uppercase;letter-spacing:0.5px">Fecha</div>
-                    <div style="color:${P.fg};font-size:16px;font-weight:700;margin-top:2px">${params.appointmentDate}</div>
+                    <div style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px">Fecha</div>
+                    <div style="color:#1e293b;font-size:16px;font-weight:700;margin-top:2px">${params.appointmentDate}</div>
                   </td>
                 </tr></table>
               </td></tr>
-              <tr><td style="padding:10px 0;border-bottom:1px solid ${P.border}">
+              <tr><td style="padding:10px 0;border-bottom:1px solid #f1f5f9">
                 <table width="100%" cellpadding="0" cellspacing="0"><tr>
                   <td style="font-size:22px;width:40px">🕐</td>
                   <td>
-                    <div style="color:${P.mutedFg};font-size:12px;text-transform:uppercase;letter-spacing:0.5px">Hora</div>
-                    <div style="color:${P.fg};font-size:16px;font-weight:700;margin-top:2px">${params.appointmentTime}</div>
+                    <div style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px">Hora</div>
+                    <div style="color:#1e293b;font-size:16px;font-weight:700;margin-top:2px">${params.appointmentTime}</div>
                   </td>
                 </tr></table>
               </td></tr>
-              <tr><td style="padding:10px 0;border-bottom:1px solid ${P.border}">
+              <tr><td style="padding:10px 0;border-bottom:1px solid #f1f5f9">
                 <table width="100%" cellpadding="0" cellspacing="0"><tr>
                   <td style="font-size:22px;width:40px">📍</td>
                   <td>
-                    <div style="color:${P.mutedFg};font-size:12px;text-transform:uppercase;letter-spacing:0.5px">Lugar</div>
-                    <div style="color:${P.fg};font-size:16px;font-weight:700;margin-top:2px">${params.location}</div>
+                    <div style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px">Lugar</div>
+                    <div style="color:#1e293b;font-size:16px;font-weight:700;margin-top:2px">${params.location}</div>
                   </td>
                 </tr></table>
               </td></tr>
@@ -183,23 +161,23 @@ export function citaConfirmadaHtml(params: {
                 <table width="100%" cellpadding="0" cellspacing="0"><tr>
                   <td style="font-size:22px;width:40px">🔑</td>
                   <td>
-                    <div style="color:${P.mutedFg};font-size:12px;text-transform:uppercase;letter-spacing:0.5px">Código de confirmación</div>
-                    <div style="color:${P.success};font-size:20px;font-weight:800;letter-spacing:2px;margin-top:2px">${params.confirmationCode}</div>
+                    <div style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px">Código de confirmación</div>
+                    <div style="color:#059669;font-size:20px;font-weight:800;letter-spacing:2px;margin-top:2px">${params.confirmationCode}</div>
                   </td>
                 </tr></table>
               </td></tr>
             </table>
           </td></tr>
         </table>
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:${P.infoLight};border:1px solid ${P.border};border-radius:8px;margin-bottom:32px">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:32px">
           <tr><td style="padding:20px 24px">
-            <div style="color:${P.infoFg};font-size:14px;font-weight:700;margin-bottom:8px">📋 &nbsp; Recordá llevar</div>
-            <div style="color:${P.infoFg};font-size:14px">${params.instructions}</div>
+            <div style="color:#1e40af;font-size:14px;font-weight:700;margin-bottom:8px">📋 &nbsp; Recordá llevar</div>
+            <div style="color:#1e40af;font-size:14px">${params.instructions}</div>
           </td></tr>
         </table>
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr><td align="center">
-            <a href="${bookingUrl}" style="display:inline-block;background:${P.success};color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:700">
+            <a href="${bookingUrl}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:700">
               Ver detalles completos →
             </a>
           </td></tr>
@@ -216,32 +194,32 @@ export function verificacionEmailHtml(params: {
 }): string {
   return layout(`
     <tr>
-      <td style="background:linear-gradient(135deg,${P.primary},${P.primaryDeep});padding:32px 40px;text-align:center">
+      <td style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 40px;text-align:center">
         <div style="font-size:48px;margin-bottom:8px">📬</div>
         <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700">Verificá tu email</h1>
-        <p style="color:#ffb3d1;margin:8px 0 0;font-size:15px">Gestor de Citas Oficiales</p>
+        <p style="color:#bfdbfe;margin:8px 0 0;font-size:15px">Gestor de Citas Oficiales</p>
       </td>
     </tr>
     <tr>
       <td style="padding:40px">
-        <p style="color:${P.fg};font-size:16px;margin:0 0 8px;font-weight:600">Hola 👋</p>
-        <p style="color:${P.mutedFg};font-size:15px;margin:0 0 32px;line-height:1.6">
+        <p style="color:#1e293b;font-size:16px;margin:0 0 8px;font-weight:600">Hola 👋</p>
+        <p style="color:#64748b;font-size:15px;margin:0 0 32px;line-height:1.6">
           Gracias por registrarte. Para activar tu cuenta y empezar a gestionar tus citas,
           confirmá tu dirección de email haciendo click en el botón.
         </p>
         <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
           <tr><td align="center">
-            <a href="${params.verificationUrl}" style="display:inline-block;background:${P.primary};color:#ffffff;text-decoration:none;padding:16px 48px;border-radius:8px;font-size:16px;font-weight:700">
+            <a href="${params.verificationUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:16px 48px;border-radius:8px;font-size:16px;font-weight:700">
               ✉️ &nbsp; Verificar mi email
             </a>
           </td></tr>
         </table>
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:${P.warningLight};border:1px solid ${P.border};border-radius:8px;margin-bottom:24px">
-          <tr><td style="padding:16px 20px;color:${P.warningFg};font-size:13px">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;margin-bottom:24px">
+          <tr><td style="padding:16px 20px;color:#713f12;font-size:13px">
             ⏱️ &nbsp; Este enlace expira en <strong>24 horas</strong>.
           </td></tr>
         </table>
-        <p style="color:${P.mutedFg};font-size:13px;margin:0;line-height:1.6">
+        <p style="color:#94a3b8;font-size:13px;margin:0;line-height:1.6">
           Si no creaste una cuenta en Gestor de Citas Oficiales, podés ignorar este email.
         </p>
       </td>
