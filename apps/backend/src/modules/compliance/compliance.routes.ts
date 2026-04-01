@@ -21,6 +21,28 @@ const reviewSchema = z.object({
   notes: z.string().optional(),
 });
 
+// List all connectors with compliance info
+router.get('/connectors', authorize('ADMIN', 'COMPLIANCE_OFFICER', 'OPERATOR'), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { prisma } = await import('../../lib/prisma');
+    const connectors = await prisma.connector.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        integrationType: true,
+        complianceLevel: true,
+        legalBasis: true,
+        lastComplianceCheck: true,
+        notes: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+    res.json({ data: connectors });
+  } catch (err) { next(err); }
+});
+
 // Evaluate without saving (dry run)
 router.post('/evaluate', authorize('ADMIN', 'COMPLIANCE_OFFICER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
