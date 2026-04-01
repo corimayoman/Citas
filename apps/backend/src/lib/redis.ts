@@ -28,16 +28,16 @@ export function getRedisClient(): Redis {
 
 /**
  * Returns a BullMQ-compatible connection config.
- * Uses the Redis URL directly so BullMQ creates its own ioredis instance,
- * avoiding type mismatches between different ioredis versions.
+ * Creates a fresh ioredis instance from the Redis URL.
+ * BullMQ accepts an ioredis instance as `connection`.
  */
-export function getBullMQConnection(): { connection: { url: string; maxRetriesPerRequest: null; enableReadyCheck: false } } {
+export function getBullMQConnection(): { connection: any } {
+  const IORedis = require('ioredis');
   return {
-    connection: {
-      url: getRedisUrl(),
+    connection: new IORedis(getRedisUrl(), {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
-    },
+    }),
   };
 }
 
