@@ -109,6 +109,17 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/compliance', complianceRoutes);
 
+// ─── Diagnostic ping (no auth) ────────────────────────────────────────────────
+app.get('/api/ping', (req, res) => {
+  res.json({
+    pong: true,
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin || '(none)',
+    allowedOrigins,
+    frontendUrlEnv: process.env.FRONTEND_URL || '(not set)',
+  });
+});
+
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
   const { checkEnvironmentVariables } = await import('./lib/env-check');
