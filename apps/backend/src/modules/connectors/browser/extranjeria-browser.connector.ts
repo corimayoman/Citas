@@ -153,7 +153,9 @@ export class ExtranjeriaBrowserConnector extends BaseBrowserConnector {
 
     // Step 1: Navigate to portal entry page
     logger.info(`ExtranjeriaBrowserConnector: navigating to ${url}`);
-    await page.goto(url, { waitUntil: 'networkidle' });
+    await this.navigateWithRetry(page, url, { waitUntil: 'networkidle' });
+    this.checkRedirect(page, this.config.baseUrl);
+    await this.checkForPortalError(page);
     await this.checkForCaptcha(page);
     await this.checkStructure(page);
 
@@ -218,7 +220,9 @@ export class ExtranjeriaBrowserConnector extends BaseBrowserConnector {
 
     // Step 1: Navigate to portal
     logger.info(`ExtranjeriaBrowserConnector: booking — navigating to ${url}`);
-    await page.goto(url, { waitUntil: 'networkidle' });
+    await this.navigateWithRetry(page, url, { waitUntil: 'networkidle' });
+    this.checkRedirect(page, this.config.baseUrl);
+    await this.checkForPortalError(page);
     await this.checkForCaptcha(page);
     await this.checkStructure(page);
 
@@ -363,7 +367,9 @@ export class ExtranjeriaBrowserConnector extends BaseBrowserConnector {
     const url = `${this.config.baseUrl}/icpplus/anularCita`;
 
     logger.info(`ExtranjeriaBrowserConnector: cancellation — navigating to ${url}`);
-    await page.goto(url, { waitUntil: 'networkidle' });
+    await this.navigateWithRetry(page, url, { waitUntil: 'networkidle' });
+    this.checkRedirect(page, this.config.baseUrl);
+    await this.checkForPortalError(page);
     await this.checkForCaptcha(page);
     await this.checkStructure(page);
 

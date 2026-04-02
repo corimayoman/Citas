@@ -48,6 +48,67 @@ export abstract class BaseBrowserConnector implements IConnector {
 
   // ── IConnector concrete methods ──────────────────────────────────────────
 
+  // ── Resilience helpers ───────────────────────────────────────────────────
+
+  /**
+   * Navigate to a URL with one automatic retry on timeout.
+   * If the first attempt fails with a timeout, retries once before throwing.
+   */
+  protected async navigateWithRetry(
+    page: Page,
+    url: string,
+    options?: { waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' },
+  ): Promise<void> {
+    const waitUntil = options?.waitUntil ?? 'domcontentloaded';
+    try {
+      await page.goto(url, { waitUntil });
+    } catch (err) {
+      const isTimeout = err instanceof Error && (err.message.includes('Timeout') || err.message.includes('timeout'));
+      if (isTimeout) {
+        logger.warn(`BaseBrowserConnector(${this.config.connectorSlug}): page load timeout, retrying once — ${url}`);
+        await page.goto(url, { waitUntil });
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  /**
+   * Check if the portal returned a generic error page (HTTP 500, "servicio no disponible").
+   * These are transient errors that should allow SearchWorker to retry without activating
+   * the CircuitBreaker.
+   */
+  protected async checkForPortalError(page: Page): Promise<void> {
+    const bodyText = (await page.textContent('body') ?? '').toLowerCase();
+    const errorIndicators = [
+      'servicio no disponible',
+      'service unavailable',
+      'error interno',
+      'internal server error',
+      'error 500',
+      'error 503',
+      'mantenimiento',
+    ];
+    for (const indicator of errorIndicators) {
+      if (bodyText.includes(indicator)) {
+        throw new Error(`Portal returned transient error: "${indicator}" — will retry`);
+      }
+    }
+  }
+
+  /**
+   * Check if the portal redirected to an unexpected URL.
+   * If the current URL doesn't start with the expected base URL, abort.
+   */
+  protected checkRedirect(page: Page, expectedBaseUrl?: string): void {
+    const currentUrl = page.url();
+    const base = expectedBaseUrl ?? this.config.baseUrl;
+    if (base && !currentUrl.startsWith(base) && !currentUrl.startsWith('about:')) {
+      logger.error(`BaseBrowserConnector(${this.config.connectorSlug}): unexpected redirect to ${currentUrl} (expected ${base})`);
+      throw new Error(`Portal redirected to unexpected URL: ${currentUrl}`);
+    }
+  }
+
   async healthCheck(): Promise<boolean> {
     const start = Date.now();
     await this.rateLimiter.acquire();
