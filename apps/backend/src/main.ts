@@ -42,8 +42,23 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asy
 
 // ─── Security middleware ──────────────────────────────────────────────────────
 app.use(helmet());
+
+// CORS — support comma-separated origins in FRONTEND_URL (e.g. "https://a.com,https://b.com")
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+      return callback(null, true);
+    }
+    logger.warn(`CORS blocked origin: ${origin} (allowed: ${allowedOrigins.join(', ')})`);
+    callback(null, false);
+  },
   credentials: true,
 }));
 app.use(compression());
@@ -60,7 +75,7 @@ app.use('/api/', limiter);
 // Stricter limit for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 60,
   standardHeaders: true,
   legacyHeaders: false,
 });

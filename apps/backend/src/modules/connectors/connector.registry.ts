@@ -53,7 +53,8 @@ class ConnectorRegistry {
             logger.info(`ExtranjeriaBrowserConnector healthCheck: ${ok ? 'OK' : 'FAIL'}`);
           })
           .catch((err: unknown) => {
-            logger.warn('ExtranjeriaBrowserConnector healthCheck error (non-blocking)', err);
+            const msg = err instanceof Error ? err.message : String(err);
+            logger.warn(`ExtranjeriaBrowserConnector healthCheck error (non-blocking): ${msg}`);
           });
       }, 30_000);
 
@@ -87,8 +88,9 @@ class ConnectorRegistry {
       for (const [connName, connector] of connectorList) {
         connector.healthCheck().then((ok) => {
           logger.info(`${connName} healthCheck: ${ok ? 'OK' : 'FAIL'}`);
-        }).catch((err) => {
-          logger.warn(`${connName} healthCheck error (non-blocking)`, err);
+        }).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.warn(`${connName} healthCheck error (non-blocking): ${msg}`);
         });
       }
     }, 15_000);

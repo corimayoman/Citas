@@ -76,10 +76,12 @@ export abstract class BaseRealConnector implements IConnector {
     try {
       const res = await this.httpClient.get(this.getHealthEndpoint());
       return res.status === 200;
-    } catch (err) {
+    } catch (err: unknown) {
+      // Only log a short summary — Axios errors contain huge binary TLS data
+      const msg = err instanceof Error ? err.message : String(err);
+      const status = (err as any)?.response?.status;
       logger.warn(
-        `BaseRealConnector(${this.config.connectorSlug}): healthCheck failed`,
-        err,
+        `BaseRealConnector(${this.config.connectorSlug}): healthCheck failed — ${msg}${status ? ` (HTTP ${status})` : ''}`,
       );
       return false;
     }
