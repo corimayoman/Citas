@@ -50,7 +50,7 @@ export class DgtConnector extends BaseRealConnector {
   }
 
   protected getHealthEndpoint(): string {
-    return '/citaprevia';
+    return '/';
   }
 
   protected async fetchAvailabilityPage(

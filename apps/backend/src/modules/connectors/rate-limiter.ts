@@ -36,9 +36,15 @@ export class RateLimiter {
 
   /**
    * Blocking acquire — waits (polls) until a token is available.
+   * Times out after maxWaitMs (default 10s) to prevent infinite blocking.
    */
-  async acquire(): Promise<void> {
+  async acquire(maxWaitMs = 10_000): Promise<void> {
+    const deadline = Date.now() + maxWaitMs;
     while (!(await this.tryAcquire())) {
+      if (Date.now() >= deadline) {
+        logger.warn(`RateLimiter(${this.connectorSlug}): timed out waiting for token after ${maxWaitMs}ms`);
+        return; // proceed anyway rather than block forever
+      }
       await sleep(POLL_INTERVAL_MS);
     }
   }

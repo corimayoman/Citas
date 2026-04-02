@@ -50,7 +50,7 @@ export class AeatConnector extends BaseRealConnector {
   }
 
   protected getHealthEndpoint(): string {
-    return '/Sede/citaprevia';
+    return '/';
   }
 
   protected async fetchAvailabilityPage(

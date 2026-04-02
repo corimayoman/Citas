@@ -59,8 +59,13 @@ export abstract class BaseRealConnector implements IConnector {
   constructor(protected readonly config: RealConnectorConfig) {
     this.httpClient = axios.create({
       baseURL: config.baseUrl,
-      timeout: config.timeoutMs ?? 30_000,
-      headers: { 'User-Agent': 'GestorCitas/1.0' },
+      timeout: config.timeoutMs ?? 15_000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9',
+      },
+      maxRedirects: 5,
     });
 
     this.rateLimiter = new RateLimiter(
@@ -74,8 +79,11 @@ export abstract class BaseRealConnector implements IConnector {
   async healthCheck(): Promise<boolean> {
     await this.rateLimiter.acquire();
     try {
-      const res = await this.httpClient.get(this.getHealthEndpoint());
-      return res.status === 200;
+      const res = await this.httpClient.get(this.getHealthEndpoint(), {
+        // Accept redirects as healthy — many gov portals redirect to login/form pages
+        validateStatus: (status) => status >= 200 && status < 400,
+      });
+      return true;
     } catch (err: unknown) {
       // Only log a short summary — Axios errors contain huge binary TLS data
       const msg = err instanceof Error ? err.message : String(err);

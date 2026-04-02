@@ -50,7 +50,7 @@ export class RegistroCivilConnector extends BaseRealConnector {
   }
 
   protected getHealthEndpoint(): string {
-    return '/citaprevia';
+    return '/es/tramites/cita-previa-registro-civil';
   }
 
   protected async fetchAvailabilityPage(
