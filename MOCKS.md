@@ -14,7 +14,8 @@ Debe actualizarse en el mismo PR que modifique cualquiera de los módulos listad
 
 | Estado | Módulo | Descripción | Variable de control | Criterio para producción | Issue de seguimiento |
 |--------|--------|-------------|---------------------|--------------------------|----------------------|
-| 🟡 Mock | Búsqueda de citas | El `MockConnector` genera un slot ficticio con código `DEMO-{timestamp}` y fecha aleatoria dentro del rango preferido. No llama a ningún sistema externo. | `CONNECTOR_TYPE=mock` (hardcodeado en registry) | Implementar conector real para cada organismo (ej: RENAPER, ANSES) | — |
+| 🟡 Mock | Búsqueda de citas (mock) | El `MockConnector` genera un slot ficticio con código `DEMO-{timestamp}` y fecha aleatoria dentro del rango preferido. No llama a ningún sistema externo. | `CONNECTOR_TYPE=mock` (hardcodeado en registry) | Implementar conector real para cada organismo (ej: RENAPER, ANSES) | — |
+| 🟢 Browser | Extranjería (Playwright) | `ExtranjeriaBrowserConnector` usa Playwright para navegar el portal JSF de Extranjería. Requiere Chromium instalado; si no está disponible, cae automáticamente al conector HTTP. | Detección automática de Playwright/Chromium en `connector.registry.ts` | Instalar Chromium en Docker (ver comentarios en Dockerfile) y configurar `BROWSER_POOL_*`, `CAPTCHA_SOLVER_*` | — |
 | 🟡 Mock | Pagos (Stripe) | Con `STRIPE_DEMO_MODE=true`, el pago se marca como `PAID` directamente en la DB sin llamar a la API de Stripe. El booking pasa a `CONFIRMED` inmediatamente. | `STRIPE_DEMO_MODE=true` (backend) / `NEXT_PUBLIC_STRIPE_DEMO_MODE=true` (frontend) | Configurar cuenta Stripe real, setear `STRIPE_DEMO_MODE=false` y proveer `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` válidos | — |
 | ✅ Real | Notificaciones (email/SMS) | Email via SendGrid HTTP API. SMS via Twilio. El usuario elige su canal preferido en el perfil. Demo mode activo solo si `NOTIFICATIONS_DEMO_MODE=true` o si no hay `SENDGRID_API_KEY` configurado. | `NOTIFICATIONS_DEMO_MODE` + `SENDGRID_API_KEY` para email, `TWILIO_*` para SMS | ✅ Email implementado y verificado en QA. SMS deshabilitado en UI (cuenta Twilio trial — solo permite números verificados). Pendiente: habilitar SMS con cuenta Twilio de producción y WhatsApp | #23 |
 | 🔴 No implementado | SSO / OAuth | No existe integración con proveedores de identidad externos (Google, SAML, etc.). Solo autenticación local con email/password. | N/A | Implementar OAuth2/OIDC con el proveedor requerido | — |
@@ -69,3 +70,19 @@ Ver issue #23.
 
 ### Conectores de organismos
 Implementar la interfaz `IConnector` en `apps/backend/src/modules/connectors/adapters/` y registrar el conector en `connector.registry.ts`.
+
+### Extranjería (Browser Automation)
+El conector de Extranjería usa Playwright con Chromium headless. Para activarlo:
+1. Instalar Chromium: `npx playwright install chromium --with-deps`
+2. Configurar variables de entorno:
+```env
+BROWSER_POOL_MIN=1
+BROWSER_POOL_MAX=3
+BROWSER_POOL_IDLE_TIMEOUT_MS=1800000
+BROWSER_NAVIGATION_TIMEOUT_MS=60000
+CAPTCHA_SOLVER_PROVIDER=2captcha
+CAPTCHA_SOLVER_API_KEY=your-api-key
+SCREENSHOT_DIR=/tmp/screenshots
+SCREENSHOT_RETENTION_DAYS=7
+```
+Si Playwright/Chromium no está disponible, el registry cae automáticamente al conector HTTP.

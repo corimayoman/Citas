@@ -202,4 +202,43 @@ router.post('/connectors/:id/dry-run', authorize('ADMIN'), async (req: Request, 
   } catch (err) { next(err); }
 });
 
+// ── Screenshots de diagnóstico ──────────────────────────────────────────────
+
+import * as fs from 'fs';
+import * as path from 'path';
+
+const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR ?? '/tmp/screenshots';
+
+// List all screenshots
+router.get('/screenshots', authorize('ADMIN'), async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!fs.existsSync(SCREENSHOT_DIR)) {
+      res.json({ data: [] });
+      return;
+    }
+    const files = fs.readdirSync(SCREENSHOT_DIR)
+      .filter(f => f.endsWith('.png'))
+      .map(f => {
+        const stat = fs.statSync(path.join(SCREENSHOT_DIR, f));
+        return { name: f, size: stat.size, createdAt: stat.mtime.toISOString() };
+      })
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    res.json({ data: files });
+  } catch (err) { next(err); }
+});
+
+// Serve a specific screenshot
+router.get('/screenshots/:filename', authorize('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9_\-\.]/g, '');
+    const filePath = path.join(SCREENSHOT_DIR, filename);
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: 'Screenshot not found' });
+      return;
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(filePath);
+  } catch (err) { next(err); }
+});
+
 export default router;

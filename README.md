@@ -490,6 +490,8 @@ Docs interactivos: `http://localhost:3001/api/docs`
 | `GET` | `/admin/bookings` | Admin/Operator | Todos los bookings |
 | `GET` | `/admin/users` | Admin | Todas las cuentas |
 | `GET` | `/admin/audit-logs` | Admin/Compliance | Audit trail inmutable |
+| `GET` | `/admin/connectors/health` | Admin | Salud de conectores + métricas del browser pool |
+| `GET` | `/admin/browser-pool` | Admin | Métricas del pool de navegadores Playwright |
 
 ### Health
 
@@ -612,6 +614,14 @@ docker-compose up -d
 | `S3_SECRET_KEY` | No | Secret key S3 |
 | `PORT` | No | Puerto del backend (default `3001`) |
 | `LOG_LEVEL` | No | Nivel de log Winston (default `info`) |
+| `BROWSER_POOL_MIN` | No | Instancias mínimas de Chromium en el pool (default `1`) |
+| `BROWSER_POOL_MAX` | No | Instancias máximas de Chromium en el pool (default `3`) |
+| `BROWSER_POOL_IDLE_TIMEOUT_MS` | No | Timeout de inactividad para cerrar instancias (default `1800000` = 30 min) |
+| `BROWSER_NAVIGATION_TIMEOUT_MS` | No | Timeout de navegación por operación (default `60000` = 60 s) |
+| `CAPTCHA_SOLVER_PROVIDER` | No | Proveedor de resolución de CAPTCHA (`2captcha`, `anticaptcha`) |
+| `CAPTCHA_SOLVER_API_KEY` | No | API key del proveedor de CAPTCHA |
+| `SCREENSHOT_DIR` | No | Directorio para screenshots de diagnóstico (default `/tmp/screenshots`) |
+| `SCREENSHOT_RETENTION_DAYS` | No | Días de retención de screenshots (default `7`) |
 
 ---
 
