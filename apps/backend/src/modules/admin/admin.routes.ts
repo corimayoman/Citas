@@ -85,8 +85,28 @@ router.get('/connectors/health', authorize('ADMIN'), async (_req: Request, res: 
       },
       orderBy: { name: 'asc' },
     });
-    res.json({ data: connectors });
+
+    // Include browser pool metrics if available
+    const browserPoolMetrics = connectorRegistry.getBrowserPoolMetrics();
+
+    res.json({
+      data: connectors,
+      browserPool: browserPoolMetrics ?? undefined,
+    });
   } catch (err) { next(err); }
+});
+
+// Browser pool metrics (ADMIN only)
+router.get('/browser-pool', authorize('ADMIN'), (_req: Request, res: Response) => {
+  const metrics = connectorRegistry.getBrowserPoolMetrics();
+  if (!metrics) {
+    res.json({
+      data: null,
+      message: 'Browser pool is not active (Playwright/Chromium not available)',
+    });
+    return;
+  }
+  res.json({ data: metrics });
 });
 
 // Reset and seed — bloqueado en producción real, permitido en QA
