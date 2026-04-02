@@ -46,14 +46,16 @@ class ConnectorRegistry {
       this.register(browserConnector);
       extranjeriaBrowser = true;
 
-      // Non-blocking health check for the browser connector
-      (browserConnector as any).healthCheck?.()
-        .then((ok: boolean) => {
-          logger.info(`ExtranjeriaBrowserConnector healthCheck: ${ok ? 'OK' : 'FAIL'}`);
-        })
-        .catch((err: unknown) => {
-          logger.warn('ExtranjeriaBrowserConnector healthCheck error (non-blocking)', err);
-        });
+      // Deferred health check — run after 30s to let the server start first
+      setTimeout(() => {
+        (browserConnector as any).healthCheck?.()
+          .then((ok: boolean) => {
+            logger.info(`ExtranjeriaBrowserConnector healthCheck: ${ok ? 'OK' : 'FAIL'}`);
+          })
+          .catch((err: unknown) => {
+            logger.warn('ExtranjeriaBrowserConnector healthCheck error (non-blocking)', err);
+          });
+      }, 30_000);
 
       logger.info('Extranjeria connector: using Playwright browser-based connector');
     } catch (err) {
@@ -77,12 +79,19 @@ class ConnectorRegistry {
 
     for (const [name, connector] of realConnectors) {
       this.register(connector);
-      connector.healthCheck().then((ok) => {
-        logger.info(`${name} healthCheck: ${ok ? 'OK' : 'FAIL'}`);
-      }).catch((err) => {
-        logger.warn(`${name} healthCheck error (non-blocking)`, err);
-      });
     }
+
+    // Deferred health checks — run after 15s to let the server start first
+    const connectorList = realConnectors;
+    setTimeout(() => {
+      for (const [connName, connector] of connectorList) {
+        connector.healthCheck().then((ok) => {
+          logger.info(`${connName} healthCheck: ${ok ? 'OK' : 'FAIL'}`);
+        }).catch((err) => {
+          logger.warn(`${connName} healthCheck error (non-blocking)`, err);
+        });
+      }
+    }, 15_000);
   }
 
   register(connector: IConnector): void {

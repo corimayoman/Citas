@@ -67,15 +67,7 @@ const authLimiter = rateLimit({
 app.use('/api/auth/', authLimiter);
 
 // ─── Stripe webhook — raw body MUST be registered before express.json() ──────
-app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), async (req, res, next) => {
-  const { paymentService } = await import('./modules/payments/payment.service');
-  const { errorHandler } = await import('./middleware/errorHandler');
-  try {
-    const sig = req.headers['stripe-signature'] as string;
-    await paymentService.handleWebhook(req.body, sig);
-    res.json({ received: true });
-  } catch (err) { next(err); }
-});
+// (Already registered above — this duplicate is intentionally removed)
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
