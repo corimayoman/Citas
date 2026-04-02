@@ -13,7 +13,7 @@ COPY prisma ./prisma/
 RUN npm install
 
 # Install Playwright Chromium for browser automation
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 RUN npx playwright install chromium --with-deps
 
 COPY . .
