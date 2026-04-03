@@ -241,34 +241,45 @@ export class BrowserPool {
   }
 
   private async launchInstance(): Promise<PooledBrowser> {
-    logger.info('BrowserPool: launching new Chromium instance');
+      const remoteUrl = process.env.BROWSERLESS_URL;
 
-    const browser = await chromium.launch({
-      headless: true,
-      args: this.config.chromiumArgs,
-    });
+      let browser: Browser;
 
-    const pooled: PooledBrowser = {
-      browser,
-      activeContexts: 0,
-      lastUsedAt: Date.now(),
-    };
-
-    // Detect crash / unexpected disconnect
-    browser.on('disconnected', () => {
-      logger.warn('BrowserPool: Chromium instance disconnected (crash?)');
-      const idx = this.instances.indexOf(pooled);
-      if (idx !== -1) {
-        this.instances.splice(idx, 1);
+      if (remoteUrl) {
+        // Connect to remote browser (Browserless.io or similar) via WebSocket
+        logger.info(`BrowserPool: connecting to remote browser at ${remoteUrl.replace(/token=.*/, 'token=***')}`);
+        browser = await chromium.connectOverCDP(remoteUrl);
+        logger.info('BrowserPool: connected to remote browser');
+      } else {
+        // Launch local Chromium
+        logger.info('BrowserPool: launching local Chromium instance');
+        browser = await chromium.launch({
+          headless: true,
+          args: this.config.chromiumArgs,
+        });
       }
-      // Try to serve queued requests with a new instance
-      this.drainQueue();
-    });
 
-    this.instances.push(pooled);
-    logger.info(`BrowserPool: instance launched (total: ${this.instances.length})`);
-    return pooled;
-  }
+      const pooled: PooledBrowser = {
+        browser,
+        activeContexts: 0,
+        lastUsedAt: Date.now(),
+      };
+
+      // Detect crash / unexpected disconnect
+      browser.on('disconnected', () => {
+        logger.warn('BrowserPool: Chromium instance disconnected (crash?)');
+        const idx = this.instances.indexOf(pooled);
+        if (idx !== -1) {
+          this.instances.splice(idx, 1);
+        }
+        // Try to serve queued requests with a new instance
+        this.drainQueue();
+      });
+
+      this.instances.push(pooled);
+      logger.info(`BrowserPool: instance launched (total: ${this.instances.length})`);
+      return pooled;
+    }
 
   private enqueue(): Promise<PooledBrowser> {
     return new Promise<PooledBrowser>((resolve, reject) => {
