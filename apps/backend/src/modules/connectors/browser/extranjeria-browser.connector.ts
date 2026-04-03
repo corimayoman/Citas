@@ -34,6 +34,15 @@ export const PROVINCE_URL_CATEGORY: Record<number, string> = {
 
 const DEFAULT_URL_CATEGORY = 'icpplus';
 
+/**
+ * The tramiteGrupo parameter index varies by province.
+ * Barcelona, Málaga, Melilla, Sevilla use [0]; the rest use [1].
+ */
+function getTramiteParam(provinceCode: number): string {
+  const useZero = [8, 29, 52, 41]; // Barcelona, Málaga, Melilla, Sevilla
+  return useZero.includes(provinceCode) ? 'tramiteGrupo[0]' : 'tramiteGrupo[1]';
+}
+
 // ── Operation codes ──────────────────────────────────────────────────────────
 
 export const OPERATION_CODES = {
@@ -142,221 +151,326 @@ export class ExtranjeriaBrowserConnector extends BaseBrowserConnector {
   // ── navigateAvailability ─────────────────────────────────────────────────
 
   protected async navigateAvailability(
-    page: Page,
-    procedureId: string,
-    _fromDate: string,
-    _toDate: string,
-  ): Promise<TimeSlot[]> {
-    const { provinceCode, operationCode } = this.parseProcedureId(procedureId);
-    const category = PROVINCE_URL_CATEGORY[provinceCode] ?? DEFAULT_URL_CATEGORY;
-    const url = `${this.config.baseUrl}/${category}/citar?p=${provinceCode}`;
+      page: Page,
+      procedureId: string,
+      _fromDate: string,
+      _toDate: string,
+    ): Promise<TimeSlot[]> {
+      const { provinceCode, operationCode } = this.parseProcedureId(procedureId);
+      const category = PROVINCE_URL_CATEGORY[provinceCode] ?? DEFAULT_URL_CATEGORY;
+      const tramiteParam = getTramiteParam(provinceCode);
 
-    // Step 1: Navigate to portal entry page
-    logger.info(`ExtranjeriaBrowserConnector: navigating to ${url}`);
-    await this.navigateWithRetry(page, url, { waitUntil: 'networkidle' });
-    this.checkRedirect(page, this.config.baseUrl);
-    await this.checkForPortalError(page);
-    await this.checkForCaptcha(page);
-    await this.checkStructure(page);
+      // Two-URL pattern (from cita-bot): first load province page, then navigate to operation
+      const url1 = `${this.config.baseUrl}/${category}/citar?p=${provinceCode}`;
+      const url2 = `${this.config.baseUrl}/${category}/acInfo?${tramiteParam}=${operationCode}`;
 
-    // Step 2: Click enter button on instructions page
-    await this.waitForSelector(page, EXTRANJERIA_SELECTORS.enterButton, 10_000);
-    await this.clickButton(page, EXTRANJERIA_SELECTORS.enterButton);
-    logger.info('ExtranjeriaBrowserConnector: passed instructions page');
+      // Step 1: Load province page (triggers bot protection / cookie setup)
+      logger.info(`ExtranjeriaBrowserConnector: navigating to ${url1}`);
+      await this.navigateWithRetry(page, url1, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(3000); // Let bot protection scripts execute
 
-    // Step 3: Select procedure (operation code)
-    await this.waitForSelector(page, EXTRANJERIA_SELECTORS.submitButton, 10_000);
-    // Select the operation from the tramite dropdown if present
-    const tramiteSelector = 'select[id*="tramite"], select[name*="tramite"]';
-    const hasTramite = await page.$(tramiteSelector);
-    if (hasTramite) {
-      await this.selectDropdown(page, tramiteSelector, String(operationCode));
-    }
-    await this.clickButton(page, EXTRANJERIA_SELECTORS.submitButton);
-    await this.checkForCaptcha(page);
-    logger.info(`ExtranjeriaBrowserConnector: selected operation ${operationCode}`);
+      // Step 2: Navigate to operation page
+      logger.info(`ExtranjeriaBrowserConnector: navigating to ${url2}`);
+      await page.goto(url2, { waitUntil: 'networkidle', timeout: this.config.navigationTimeoutMs });
+      await page.waitForTimeout(3000);
 
-    // Step 4: Fill minimal personal data to proceed
-    await this.waitForSelector(page, EXTRANJERIA_SELECTORS.documentInput, 10_000);
-    // Use placeholder data for availability check — just enough to proceed
-    await this.fillField(page, EXTRANJERIA_SELECTORS.documentInput, 'X0000000T');
-    await this.fillField(page, EXTRANJERIA_SELECTORS.nameInput, 'CONSULTA DISPONIBILIDAD');
-
-    // Select document type (NIE by default)
-    const nieRadio = await page.$(EXTRANJERIA_SELECTORS.documentTypeNie);
-    if (nieRadio) await nieRadio.click();
-
-    await this.clickButton(page, EXTRANJERIA_SELECTORS.submitButton);
-    await this.checkForCaptcha(page);
-    logger.info('ExtranjeriaBrowserConnector: submitted personal data');
-
-    // Step 5: Select office if dropdown is present
-    const officeDropdown = await page.$(EXTRANJERIA_SELECTORS.officeSelect);
-    if (officeDropdown) {
-      // Get all available offices and select the first one
-      const options = await page.$$eval(`${EXTRANJERIA_SELECTORS.officeSelect} option`, opts =>
-        opts.filter(o => (o as HTMLOptionElement).value).map(o => (o as HTMLOptionElement).value),
-      );
-      if (options.length > 0) {
-        await this.selectDropdown(page, EXTRANJERIA_SELECTORS.officeSelect, options[0]);
-        await this.clickButton(page, EXTRANJERIA_SELECTORS.nextButton);
+      // Verify we're on the right page
+      const bodyText = await page.textContent('body') ?? '';
+      if (!bodyText.includes('INTERNET CITA PREVIA') && !bodyText.includes('CITA PREVIA')) {
+        await this.screenshotService.capture(page, 'extranjeria', 'AVAILABILITY_PAGE_NOT_LOADED');
+        logger.warn('ExtranjeriaBrowserConnector: portal page did not load correctly');
+        return [];
       }
-    }
 
-    // Step 6: Extract available slots
-    return this.extractSlots(page);
-  }
+      // Step 3: Click "Entrar" on instructions page
+      const enterBtn = await page.$(EXTRANJERIA_SELECTORS.enterButton);
+      if (enterBtn) {
+        await enterBtn.click();
+        await page.waitForTimeout(2000);
+      }
+      logger.info('ExtranjeriaBrowserConnector: passed instructions page');
+
+      // Step 4: Fill personal data (minimal — just enough to see availability)
+      await this.waitForSelector(page, EXTRANJERIA_SELECTORS.documentInput, 15_000);
+
+      // Select document type (NIE by default)
+      const nieRadio = await page.$(EXTRANJERIA_SELECTORS.documentTypeNie);
+      if (nieRadio) await nieRadio.click();
+
+      await this.fillField(page, EXTRANJERIA_SELECTORS.documentInput, 'X0000000T');
+
+      // Name field — may be a separate field or tab-linked
+      const nameField = await page.$(EXTRANJERIA_SELECTORS.nameInput);
+      if (nameField) {
+        await this.fillField(page, EXTRANJERIA_SELECTORS.nameInput, 'CONSULTA DISPONIBILIDAD');
+      } else {
+        await page.keyboard.press('Tab');
+        await page.keyboard.type('CONSULTA DISPONIBILIDAD');
+      }
+
+      // Nationality select (if present for this operation type)
+      const nationalitySelect = await page.$(EXTRANJERIA_SELECTORS.nationalitySelect);
+      if (nationalitySelect) {
+        await page.selectOption(EXTRANJERIA_SELECTORS.nationalitySelect, { label: 'ESPAÑA' }).catch(() => {});
+      }
+
+      // Submit personal data
+      const submitBtn = await page.$(EXTRANJERIA_SELECTORS.submitButton);
+      if (submitBtn) {
+        await submitBtn.click();
+        await page.waitForTimeout(3000);
+      }
+      await this.checkForCaptcha(page);
+      logger.info('ExtranjeriaBrowserConnector: submitted personal data');
+
+      // Step 5: Office selection
+      const pageText = await page.textContent('body') ?? '';
+      if (pageText.includes('Seleccione la oficina')) {
+        const officeDropdown = await page.$(EXTRANJERIA_SELECTORS.officeSelect);
+        if (officeDropdown) {
+          const options = await page.$$eval(
+            `${EXTRANJERIA_SELECTORS.officeSelect} option`,
+            opts => opts.filter(o => (o as HTMLOptionElement).value !== '').map(o => (o as HTMLOptionElement).value),
+          );
+          if (options.length > 0) {
+            await page.selectOption(EXTRANJERIA_SELECTORS.officeSelect, options[0]);
+            const nextBtn = await page.$(EXTRANJERIA_SELECTORS.nextButton);
+            if (nextBtn) {
+              await nextBtn.click();
+              await page.waitForTimeout(3000);
+            }
+          }
+        }
+      } else if (pageText.includes('En este momento no hay citas disponibles')) {
+        logger.info('ExtranjeriaBrowserConnector: no appointments available at this time');
+        return [];
+      }
+
+      // Step 6: Extract available slots
+      return this.extractSlots(page);
+    }
 
   // ── navigateBooking ──────────────────────────────────────────────────────
 
   protected async navigateBooking(
-    page: Page,
-    bookingData: Record<string, unknown>,
-  ): Promise<BookingResult> {
-    const provinceCode = Number(bookingData.provinceCode ?? 28);
-    const operationCode = Number(bookingData.operationCode ?? OPERATION_CODES.TOMA_HUELLAS);
-    const category = PROVINCE_URL_CATEGORY[provinceCode] ?? DEFAULT_URL_CATEGORY;
-    const url = `${this.config.baseUrl}/${category}/citar?p=${provinceCode}`;
+      page: Page,
+      bookingData: Record<string, unknown>,
+    ): Promise<BookingResult> {
+      const provinceCode = Number(bookingData.provinceCode ?? 28);
+      const operationCode = Number(bookingData.operationCode ?? OPERATION_CODES.TOMA_HUELLAS);
+      const category = PROVINCE_URL_CATEGORY[provinceCode] ?? DEFAULT_URL_CATEGORY;
+      const tramiteParam = getTramiteParam(provinceCode);
 
-    // Step 1: Navigate to portal
-    logger.info(`ExtranjeriaBrowserConnector: booking — navigating to ${url}`);
-    await this.navigateWithRetry(page, url, { waitUntil: 'networkidle' });
-    this.checkRedirect(page, this.config.baseUrl);
-    await this.checkForPortalError(page);
-    await this.checkForCaptcha(page);
-    await this.checkStructure(page);
+      const url1 = `${this.config.baseUrl}/${category}/citar?p=${provinceCode}`;
+      const url2 = `${this.config.baseUrl}/${category}/acInfo?${tramiteParam}=${operationCode}`;
 
-    // Step 2: Pass instructions page
-    await this.waitForSelector(page, EXTRANJERIA_SELECTORS.enterButton, 10_000);
-    await this.clickButton(page, EXTRANJERIA_SELECTORS.enterButton);
+      // Step 1: Load province page (bot protection)
+      logger.info(`ExtranjeriaBrowserConnector: booking — navigating to ${url1}`);
+      await this.navigateWithRetry(page, url1, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(3000);
 
-    // Step 3: Select procedure
-    await this.waitForSelector(page, EXTRANJERIA_SELECTORS.submitButton, 10_000);
-    const tramiteSelector = 'select[id*="tramite"], select[name*="tramite"]';
-    const hasTramite = await page.$(tramiteSelector);
-    if (hasTramite) {
-      await this.selectDropdown(page, tramiteSelector, String(operationCode));
-    }
-    await this.clickButton(page, EXTRANJERIA_SELECTORS.submitButton);
-    await this.checkForCaptcha(page);
+      // Step 2: Navigate to operation page
+      await page.goto(url2, { waitUntil: 'networkidle', timeout: this.config.navigationTimeoutMs });
+      await page.waitForTimeout(3000);
 
-    // Step 4: Fill personal data
-    await this.waitForSelector(page, EXTRANJERIA_SELECTORS.documentInput, 10_000);
-
-    const documentNumber = String(bookingData.documentNumber ?? '');
-    const applicantName = String(bookingData.applicantName ?? '');
-    const nationality = String(bookingData.nationality ?? '');
-    const documentType = String(bookingData.documentType ?? 'nie');
-    const email = String(bookingData.email ?? '');
-    const phone = String(bookingData.phone ?? '');
-
-    await this.fillField(page, EXTRANJERIA_SELECTORS.documentInput, documentNumber);
-    await this.fillField(page, EXTRANJERIA_SELECTORS.nameInput, applicantName);
-
-    // Select nationality
-    if (nationality) {
-      await this.selectDropdown(page, EXTRANJERIA_SELECTORS.nationalitySelect, nationality);
-    }
-
-    // Select document type radio
-    const docTypeMap: Record<string, string> = {
-      nie: EXTRANJERIA_SELECTORS.documentTypeNie,
-      passport: EXTRANJERIA_SELECTORS.documentTypePas,
-      dni: EXTRANJERIA_SELECTORS.documentTypeDni,
-    };
-    const docTypeSelector = docTypeMap[documentType] ?? EXTRANJERIA_SELECTORS.documentTypeNie;
-    const docRadio = await page.$(docTypeSelector);
-    if (docRadio) await docRadio.click();
-
-    await this.clickButton(page, EXTRANJERIA_SELECTORS.submitButton);
-    await this.checkForCaptcha(page);
-    logger.info('ExtranjeriaBrowserConnector: booking — personal data submitted');
-
-    // Step 5: Select office
-    const targetOffice = String(bookingData.officeId ?? '');
-    const officeDropdown = await page.$(EXTRANJERIA_SELECTORS.officeSelect);
-    if (officeDropdown && targetOffice) {
-      await this.selectDropdown(page, EXTRANJERIA_SELECTORS.officeSelect, targetOffice);
-      await this.clickButton(page, EXTRANJERIA_SELECTORS.nextButton);
-    }
-
-    // Step 6: Select the target slot
-    const targetDate = String(bookingData.selectedDate ?? '');
-    const targetTime = String(bookingData.selectedTime ?? '');
-    const targetSlotId = String(bookingData.slotId ?? '');
-
-    // Click on the date slot if available
-    if (targetSlotId) {
-      const slotRadio = await page.$(`input[name='rdbCita'][value='${targetSlotId}']`);
-      if (slotRadio) {
-        await slotRadio.click();
+      const bodyText = await page.textContent('body') ?? '';
+      if (!bodyText.includes('INTERNET CITA PREVIA') && !bodyText.includes('CITA PREVIA')) {
+        await this.screenshotService.capture(page, 'extranjeria', 'BOOKING_PAGE_NOT_LOADED');
+        return { success: false, errorMessage: 'Portal page did not load correctly' };
       }
-    } else {
-      // Try to find a matching date/time slot
-      const dateSlots = await page.$$(EXTRANJERIA_SELECTORS.dateSlots);
-      for (const slot of dateSlots) {
-        const text = await slot.textContent();
-        if (text && text.includes(targetDate)) {
-          await slot.click();
-          break;
+
+      // Step 3: Pass instructions page
+      const enterBtn = await page.$(EXTRANJERIA_SELECTORS.enterButton);
+      if (enterBtn) {
+        await enterBtn.click();
+        await page.waitForTimeout(2000);
+      }
+
+      // Step 4: Fill personal data
+      await this.waitForSelector(page, EXTRANJERIA_SELECTORS.documentInput, 15_000);
+
+      const documentNumber = String(bookingData.documentNumber ?? '');
+      const applicantName = String(bookingData.applicantName ?? '');
+      const nationality = String(bookingData.nationality ?? '');
+      const documentType = String(bookingData.documentType ?? 'nie');
+      const email = String(bookingData.email ?? '');
+      const phone = String(bookingData.phone ?? '');
+      const yearOfBirth = String(bookingData.yearOfBirth ?? '');
+
+      // Select document type radio
+      const docTypeMap: Record<string, string> = {
+        nie: EXTRANJERIA_SELECTORS.documentTypeNie,
+        passport: EXTRANJERIA_SELECTORS.documentTypePas,
+        dni: EXTRANJERIA_SELECTORS.documentTypeDni,
+      };
+      const docTypeSelector = docTypeMap[documentType] ?? EXTRANJERIA_SELECTORS.documentTypeNie;
+      const docRadio = await page.$(docTypeSelector);
+      if (docRadio) await docRadio.click();
+
+      // Fill document number and name (tab-linked fields)
+      const docInput = await page.$(EXTRANJERIA_SELECTORS.documentInput);
+      if (docInput) {
+        await docInput.click();
+        await docInput.fill(documentNumber);
+        await page.keyboard.press('Tab');
+        await page.keyboard.type(applicantName);
+        // Some operations require year of birth after name
+        if (yearOfBirth) {
+          await page.keyboard.press('Tab');
+          await page.keyboard.type(yearOfBirth);
         }
       }
-    }
 
-    await this.clickButton(page, EXTRANJERIA_SELECTORS.nextButton);
-    await this.checkForCaptcha(page);
-    logger.info(`ExtranjeriaBrowserConnector: booking — slot selected (${targetDate} ${targetTime})`);
-
-    // Step 7: Fill confirmation details
-    if (phone) {
-      const phoneField = await page.$(EXTRANJERIA_SELECTORS.phoneInput);
-      if (phoneField) await this.fillField(page, EXTRANJERIA_SELECTORS.phoneInput, phone);
-    }
-
-    if (email) {
-      const emailField = await page.$(EXTRANJERIA_SELECTORS.emailOne);
-      if (emailField) {
-        await this.fillField(page, EXTRANJERIA_SELECTORS.emailOne, email);
-        await this.fillField(page, EXTRANJERIA_SELECTORS.emailTwo, email);
+      // Nationality select (if present)
+      if (nationality) {
+        const natSelect = await page.$(EXTRANJERIA_SELECTORS.nationalitySelect);
+        if (natSelect) {
+          await page.selectOption(EXTRANJERIA_SELECTORS.nationalitySelect, { label: nationality }).catch(() => {});
+        }
       }
+
+      // Submit personal data
+      const submitBtn = await page.$(EXTRANJERIA_SELECTORS.submitButton);
+      if (submitBtn) {
+        await submitBtn.click();
+        await page.waitForTimeout(3000);
+      }
+      await this.checkForCaptcha(page);
+      logger.info('ExtranjeriaBrowserConnector: booking — personal data submitted');
+
+      // Step 5: Office selection
+      const targetOffice = String(bookingData.officeId ?? '');
+      const pageText = await page.textContent('body') ?? '';
+
+      if (pageText.includes('Seleccione la oficina')) {
+        const officeDropdown = await page.$(EXTRANJERIA_SELECTORS.officeSelect);
+        if (officeDropdown && targetOffice) {
+          await page.selectOption(EXTRANJERIA_SELECTORS.officeSelect, targetOffice);
+        } else if (officeDropdown) {
+          // Select first available office
+          const options = await page.$$eval(
+            `${EXTRANJERIA_SELECTORS.officeSelect} option`,
+            opts => opts.filter(o => (o as HTMLOptionElement).value !== '').map(o => (o as HTMLOptionElement).value),
+          );
+          if (options.length > 0) {
+            await page.selectOption(EXTRANJERIA_SELECTORS.officeSelect, options[0]);
+          }
+        }
+        const nextBtn = await page.$(EXTRANJERIA_SELECTORS.nextButton);
+        if (nextBtn) {
+          await nextBtn.click();
+          await page.waitForTimeout(3000);
+        }
+      } else if (pageText.includes('En este momento no hay citas disponibles')) {
+        return { success: false, errorMessage: 'No hay citas disponibles en este momento' };
+      }
+
+      // Step 6: Fill phone and email
+      const phoneField = await page.$(EXTRANJERIA_SELECTORS.phoneInput);
+      if (phoneField && phone) {
+        await this.fillField(page, EXTRANJERIA_SELECTORS.phoneInput, phone);
+      }
+      const emailField = await page.$(EXTRANJERIA_SELECTORS.emailOne);
+      if (emailField && email) {
+        await this.fillField(page, EXTRANJERIA_SELECTORS.emailOne, email);
+        const emailTwo = await page.$(EXTRANJERIA_SELECTORS.emailTwo);
+        if (emailTwo) await this.fillField(page, EXTRANJERIA_SELECTORS.emailTwo, email);
+      }
+
+      // Add reason if needed (e.g. for SOLICITUD_ASILO)
+      const reason = String(bookingData.reason ?? '');
+      if (reason) {
+        const reasonField = await page.$('#txtObservaciones');
+        if (reasonField) await this.fillField(page, '#txtObservaciones', reason);
+      }
+
+      // Submit contact info — uses enviar() JS call
+      await page.evaluate(() => { (window as any).enviar?.(); }).catch(() => {});
+      await page.waitForTimeout(3000);
+
+      // Step 7: Select appointment slot
+      const targetDate = String(bookingData.selectedDate ?? '');
+      const targetTime = String(bookingData.selectedTime ?? '');
+      const targetSlotId = String(bookingData.slotId ?? '');
+      const slotPageText = await page.textContent('body') ?? '';
+
+      if (slotPageText.includes('DISPONE DE 5 MINUTOS') || slotPageText.includes('citas disponibles')) {
+        logger.info('ExtranjeriaBrowserConnector: booking — slot selection page reached');
+
+        // Solve CAPTCHA if present
+        await this.checkForCaptcha(page);
+
+        if (targetSlotId) {
+          // Direct slot selection by ID
+          const slotRadio = await page.$(`input[name='rdbCita'][value='${targetSlotId}']`);
+          if (slotRadio) await slotRadio.click();
+        } else {
+          // Try to find matching date/time in radio buttons
+          const dateSlots = await page.$$('[id^=lCita_]');
+          let selectedIndex = 0;
+          for (let i = 0; i < dateSlots.length; i++) {
+            const text = await dateSlots[i].textContent() ?? '';
+            if (targetDate && text.includes(targetDate)) {
+              selectedIndex = i;
+              break;
+            }
+          }
+          // Click the corresponding radio button
+          const radios = await page.$$("input[type='radio'][name='rdbCita']");
+          if (radios[selectedIndex]) await radios[selectedIndex].click();
+        }
+
+        // Submit slot selection — uses envia() JS call
+        await page.evaluate(() => { (window as any).envia?.(); }).catch(() => {});
+        await page.waitForTimeout(1000);
+
+        // Accept the alert dialog
+        page.once('dialog', dialog => dialog.accept());
+        await page.waitForTimeout(2000);
+      } else {
+        await this.screenshotService.capture(page, 'extranjeria', 'BOOKING_NO_SLOTS');
+        return { success: false, errorMessage: 'No se encontraron citas disponibles' };
+      }
+
+      // Step 8: Confirmation page
+      const confirmText = await page.textContent('body') ?? '';
+      if (confirmText.includes('Debe confirmar los datos')) {
+        logger.info('ExtranjeriaBrowserConnector: booking — confirmation page reached');
+
+        // Check for SMS verification
+        await this.detectSMSVerification(page);
+
+        // Check confirmation checkbox and send email checkbox
+        const checkbox = await page.$(EXTRANJERIA_SELECTORS.confirmCheckbox);
+        if (checkbox) await checkbox.check();
+        const emailCheckbox = await page.$(EXTRANJERIA_SELECTORS.sendEmailCheckbox);
+        if (emailCheckbox) await emailCheckbox.check();
+
+        // Confirm
+        const confirmBtn = await page.$(EXTRANJERIA_SELECTORS.confirmButton);
+        if (confirmBtn) {
+          await confirmBtn.click();
+          await page.waitForTimeout(3000);
+        }
+      }
+
+      // Step 9: Extract confirmation code
+      const finalText = await page.textContent('body') ?? '';
+      if (finalText.includes('CITA CONFIRMADA Y GRABADA')) {
+        const confirmCode = await this.extractText(page, EXTRANJERIA_SELECTORS.confirmationCode);
+        logger.info(`ExtranjeriaBrowserConnector: booking confirmed — code=${confirmCode}`);
+        return {
+          success: true,
+          confirmationCode: confirmCode?.trim(),
+          appointmentDate: targetDate,
+          appointmentTime: targetTime,
+          location: targetOffice,
+        };
+      }
+
+      await this.screenshotService.capture(page, 'extranjeria', 'BOOKING_FAILED');
+      return { success: false, errorMessage: 'La reserva no pudo completarse' };
     }
-
-    // Check confirmation checkbox
-    const checkbox = await page.$(EXTRANJERIA_SELECTORS.confirmCheckbox);
-    if (checkbox) await checkbox.check();
-
-    // Check send-email checkbox
-    const emailCheckbox = await page.$(EXTRANJERIA_SELECTORS.sendEmailCheckbox);
-    if (emailCheckbox) await emailCheckbox.check();
-
-    // Step 8: Confirm booking
-    await this.clickButton(page, EXTRANJERIA_SELECTORS.confirmButton);
-    await this.checkForCaptcha(page);
-
-    // Step 9: Check for SMS verification
-    await this.detectSMSVerification(page);
-
-    // Step 10: Extract confirmation
-    const confirmCode = await this.extractText(page, EXTRANJERIA_SELECTORS.confirmationCode);
-
-    if (!confirmCode) {
-      await this.screenshotService.capture(page, 'extranjeria', 'BOOKING_NO_CONFIRMATION');
-      return {
-        success: false,
-        errorMessage: 'No confirmation code found after booking submission',
-      };
-    }
-
-    logger.info(`ExtranjeriaBrowserConnector: booking confirmed — code=${confirmCode}`);
-
-    return {
-      success: true,
-      confirmationCode: confirmCode.trim(),
-      appointmentDate: targetDate,
-      appointmentTime: targetTime,
-      location: targetOffice,
-    };
-  }
 
   // ── navigateCancellation ─────────────────────────────────────────────────
 
@@ -513,33 +627,62 @@ export class ExtranjeriaBrowserConnector extends BaseBrowserConnector {
    * Looks for the slots table (#CitaMAP_HORAS) or date slot elements.
    */
   private async extractSlots(page: Page): Promise<TimeSlot[]> {
-    const slots: TimeSlot[] = [];
+      const slots: TimeSlot[] = [];
+      const bodyText = await page.textContent('body') ?? '';
 
-    // Try extracting from radio buttons first (most common pattern)
-    const radios = await page.$$(EXTRANJERIA_SELECTORS.slotRadios);
-    for (const radio of radios) {
-      const value = await radio.getAttribute('value');
-      const parent = await radio.evaluateHandle(el => el.closest('tr') ?? el.parentElement);
-      const rowText = await parent.evaluate(el => (el as HTMLElement).textContent ?? '');
+      // Format 1: Radio buttons with date labels (lCita_X elements)
+      if (bodyText.includes('DISPONE DE 5 MINUTOS') || bodyText.includes('citas disponibles')) {
+        const dateElements = await page.$$('[id^=lCita_]');
+        for (const el of dateElements) {
+          const text = await el.textContent() ?? '';
+          const parsed = this.parseSlotText(text.trim());
+          if (parsed) slots.push(parsed);
+        }
 
-      const parsed = this.parseSlotText(rowText.trim(), value ?? undefined);
-      if (parsed) slots.push(parsed);
+        if (slots.length > 0) {
+          logger.info(`ExtranjeriaBrowserConnector: extracted ${slots.length} slot(s) from radio buttons`);
+          return slots;
+        }
+
+        // Format 2: Table with HUECO_* elements (CitaMAP_HORAS)
+        const slotsTable = await page.$(EXTRANJERIA_SELECTORS.slotsTable);
+        if (slotsTable) {
+          // Get column headers (dates)
+          const dateHeaders = await page.$$eval(
+            '#CitaMAP_HORAS thead [class^=colFecha]',
+            els => els.map(el => el.textContent?.trim() ?? ''),
+          );
+
+          // Get rows with time slots
+          const rows = await page.$$('#CitaMAP_HORAS tbody tr');
+          for (const row of rows) {
+            const timeHeader = await row.$('th');
+            const time = await timeHeader?.textContent() ?? '';
+            const cells = await row.$$('td');
+
+            for (let i = 0; i < cells.length && i < dateHeaders.length; i++) {
+              const hueco = await cells[i].$('[id^=HUECO]');
+              if (hueco) {
+                const huecoId = await hueco.getAttribute('id') ?? '';
+                const dateText = dateHeaders[i];
+                const parsed = this.parseSlotText(`${dateText} ${time.trim()}`, huecoId);
+                if (parsed) slots.push(parsed);
+              }
+            }
+          }
+
+          logger.info(`ExtranjeriaBrowserConnector: extracted ${slots.length} slot(s) from HUECO table`);
+        }
+      } else if (bodyText.includes('En este momento no hay citas disponibles')) {
+        logger.info('ExtranjeriaBrowserConnector: no appointments available');
+      } else {
+        // Take screenshot for debugging
+        await this.screenshotService.capture(page, 'extranjeria', 'UNKNOWN_SLOT_PAGE');
+        logger.warn('ExtranjeriaBrowserConnector: unexpected page state when extracting slots');
+      }
+
+      return slots;
     }
-
-    if (slots.length > 0) return slots;
-
-    // Fallback: try date slot elements
-    const dateElements = await page.$$(EXTRANJERIA_SELECTORS.dateSlots);
-    for (const el of dateElements) {
-      const text = await el.textContent();
-      const id = await el.getAttribute('id');
-      const parsed = this.parseSlotText(text ?? '', id ?? undefined);
-      if (parsed) slots.push(parsed);
-    }
-
-    logger.info(`ExtranjeriaBrowserConnector: extracted ${slots.length} slot(s)`);
-    return slots;
-  }
 
   /**
    * Parse slot text (e.g. "15/07/2025 09:30") into a TimeSlot.

@@ -1,0 +1,27 @@
+# Nixpacks config for Railway — installs Playwright Chromium during build
+# so it's available at runtime without downloading on every deploy.
+
+[phases.setup]
+aptPkgs = [
+  "libnss3",
+  "libatk-bridge2.0-0",
+  "libdrm2",
+  "libxkbcommon0",
+  "libgbm1",
+  "libpango-1.0-0",
+  "libcairo2",
+  "libasound2",
+  "libxshmfence1",
+  "libx11-xcb1",
+  "libxcomposite1",
+  "libxdamage1",
+  "libxfixes3",
+  "libxrandr2",
+  "libgtk-3-0",
+  "libatspi2.0-0",
+  "fonts-liberation",
+]
+
+[phases.chromium]
+dependsOn = ["install"]
+cmds = ["npx playwright install chromium"]
