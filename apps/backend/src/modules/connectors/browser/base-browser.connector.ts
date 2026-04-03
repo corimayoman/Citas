@@ -110,45 +110,39 @@ export abstract class BaseBrowserConnector implements IConnector {
   }
 
   async healthCheck(): Promise<boolean> {
-    const start = Date.now();
-    await this.rateLimiter.acquire();
+      const start = Date.now();
+      await this.rateLimiter.acquire();
 
-    let acquired: AcquiredContext | null = null;
-    try {
-      acquired = await this.browserPool.acquireContext();
-      acquired.page.setDefaultNavigationTimeout(this.config.navigationTimeoutMs);
+      let acquired: AcquiredContext | null = null;
+      try {
+        acquired = await this.browserPool.acquireContext();
 
-      logger.info(`BaseBrowserConnector(${this.config.connectorSlug}): healthCheck — navigating to ${this.config.baseUrl}`);
-      await acquired.page.goto(this.config.baseUrl, { waitUntil: 'domcontentloaded' });
+        // Simple health check: verify Chromium can launch and make a basic navigation.
+        // We use a short timeout and don't require the portal to fully load
+        // (gov portals have bot protection that can take 60s+ from some regions).
+        acquired.page.setDefaultNavigationTimeout(15_000);
 
-      const captcha = await this.detectCaptcha(acquired.page);
-      if (captcha) {
-        throw new CircuitBreakerError(
-          `CAPTCHA detected during healthCheck on ${this.config.connectorSlug}`,
-          'CAPTCHA_DETECTED',
-        );
+        logger.info(`BaseBrowserConnector(${this.config.connectorSlug}): healthCheck — navigating to ${this.config.baseUrl}`);
+        const response = await acquired.page.goto(this.config.baseUrl, { waitUntil: 'commit' });
+
+        // 'commit' fires as soon as the server responds with headers.
+        // This is enough to verify: Chromium works + network reaches the portal.
+        const status = response?.status() ?? 0;
+        const ok = status > 0 && status < 500;
+
+        const elapsed = Date.now() - start;
+        logger.info(`BaseBrowserConnector(${this.config.connectorSlug}): healthCheck ${ok ? 'OK' : 'FAIL'} (HTTP ${status}) in ${elapsed}ms`);
+        return ok;
+      } catch (err: unknown) {
+        const elapsed = Date.now() - start;
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.warn(`BaseBrowserConnector(${this.config.connectorSlug}): healthCheck failed after ${elapsed}ms ${msg}`);
+        if (err instanceof CircuitBreakerError) throw err;
+        return false;
+      } finally {
+        if (acquired) await acquired.release();
       }
-
-      const structureValid = await this.validateStructure(acquired.page);
-      if (!structureValid) {
-        throw new CircuitBreakerError(
-          `Portal structure changed on ${this.config.connectorSlug}`,
-          'STRUCTURE_CHANGED',
-        );
-      }
-
-      const elapsed = Date.now() - start;
-      logger.info(`BaseBrowserConnector(${this.config.connectorSlug}): healthCheck completed in ${elapsed}ms`);
-      return true;
-    } catch (err) {
-      const elapsed = Date.now() - start;
-      logger.warn(`BaseBrowserConnector(${this.config.connectorSlug}): healthCheck failed after ${elapsed}ms`, err);
-      if (err instanceof CircuitBreakerError) throw err;
-      return false;
-    } finally {
-      if (acquired) await acquired.release();
     }
-  }
 
   async getAvailability(
     procedureId: string,
