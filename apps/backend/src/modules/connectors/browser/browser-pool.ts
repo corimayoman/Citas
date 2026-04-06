@@ -114,34 +114,39 @@ export class BrowserPool {
    * waits up to `acquireTimeoutMs` before throwing.
    */
   async acquireContext(): Promise<AcquiredContext> {
-    if (this.shuttingDown) {
-      throw new Error('BrowserPool is shutting down');
+      if (this.shuttingDown) {
+        throw new Error('BrowserPool is shutting down');
+      }
+
+      const instance = await this.getOrCreateInstance();
+      instance.activeContexts += 1;
+      instance.lastUsedAt = Date.now();
+
+      const userAgent = this.nextUserAgent();
+
+      // Support residential proxy via BROWSER_PROXY env var
+      // Format: http://user:pass@host:port
+      const proxyUrl = process.env.BROWSER_PROXY;
+      const contextOptions: Record<string, unknown> = {
+        userAgent,
+        viewport: { width: 1280, height: 720 },
+        locale: 'es-ES',
+        ...(proxyUrl ? { proxy: { server: proxyUrl } } : {}),
+      };
+
+      const context = await instance.browser.newContext(contextOptions);
+      const page = await context.newPage();
+
+      const released = { done: false };
+
+      const release = async (): Promise<void> => {
+        if (released.done) return;
+        released.done = true;
+        await this.releaseContext(context, instance);
+      };
+
+      return { context, page, release };
     }
-
-    const instance = await this.getOrCreateInstance();
-    instance.activeContexts += 1;
-    instance.lastUsedAt = Date.now();
-
-    const userAgent = this.nextUserAgent();
-
-    const context = await instance.browser.newContext({
-      userAgent,
-      viewport: { width: 1280, height: 720 },
-      locale: 'es-ES',
-    });
-
-    const page = await context.newPage();
-
-    const released = { done: false };
-
-    const release = async (): Promise<void> => {
-      if (released.done) return;
-      released.done = true;
-      await this.releaseContext(context, instance);
-    };
-
-    return { context, page, release };
-  }
 
   /**
    * Release a context — closes it without killing the browser process.
@@ -264,10 +269,12 @@ export class BrowserPool {
         }
       } else {
         // Launch local Chromium
-        logger.info('BrowserPool: launching local Chromium instance');
+        const proxyUrl = process.env.BROWSER_PROXY;
+        logger.info(`BrowserPool: launching local Chromium${proxyUrl ? ' (with proxy)' : ''}`);
         browser = await chromium.launch({
           headless: true,
           args: this.config.chromiumArgs,
+          ...(proxyUrl ? { proxy: { server: proxyUrl } } : {}),
         });
       }
 
