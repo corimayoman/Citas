@@ -246,10 +246,22 @@ export class BrowserPool {
       let browser: Browser;
 
       if (remoteUrl) {
-        // Connect to remote browser (Browserless.io or similar) via WebSocket
-        logger.info(`BrowserPool: connecting to remote browser at ${remoteUrl.replace(/token=.*/, 'token=***')}`);
-        browser = await chromium.connectOverCDP(remoteUrl);
-        logger.info('BrowserPool: connected to remote browser');
+        // Connect to remote browser (Browserless.io) via Playwright WebSocket.
+        // Browserless v2 uses the standard Playwright WS endpoint.
+        const wsUrl = remoteUrl.replace(/^https?:\/\//, 'wss://');
+        logger.info(`BrowserPool: connecting to remote browser at ${wsUrl.replace(/token=.*/, 'token=***')}`);
+
+        try {
+          // Try Playwright WS protocol first (Browserless v2 BaaS)
+          browser = await chromium.connect(wsUrl, { timeout: 30_000 });
+          logger.info('BrowserPool: connected via Playwright WS protocol');
+        } catch (wsErr) {
+          // Fallback to CDP protocol (Browserless v1 / other providers)
+          logger.info('BrowserPool: Playwright WS failed, trying CDP protocol...');
+          const cdpUrl = wsUrl.replace(/^wss:\/\//, 'wss://');
+          browser = await chromium.connectOverCDP(cdpUrl, { timeout: 30_000 });
+          logger.info('BrowserPool: connected via CDP protocol');
+        }
       } else {
         // Launch local Chromium
         logger.info('BrowserPool: launching local Chromium instance');
@@ -267,12 +279,11 @@ export class BrowserPool {
 
       // Detect crash / unexpected disconnect
       browser.on('disconnected', () => {
-        logger.warn('BrowserPool: Chromium instance disconnected (crash?)');
+        logger.warn('BrowserPool: Chromium instance disconnected');
         const idx = this.instances.indexOf(pooled);
         if (idx !== -1) {
           this.instances.splice(idx, 1);
         }
-        // Try to serve queued requests with a new instance
         this.drainQueue();
       });
 

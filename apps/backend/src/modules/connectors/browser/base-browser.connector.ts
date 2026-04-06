@@ -120,7 +120,7 @@ export abstract class BaseBrowserConnector implements IConnector {
         // Simple health check: verify Chromium can launch and make a basic navigation.
         // We use a short timeout and don't require the portal to fully load
         // (gov portals have bot protection that can take 60s+ from some regions).
-        acquired.page.setDefaultNavigationTimeout(15_000);
+        acquired.page.setDefaultNavigationTimeout(30_000);
 
         logger.info(`BaseBrowserConnector(${this.config.connectorSlug}): healthCheck — navigating to ${this.config.baseUrl}`);
         const response = await acquired.page.goto(this.config.baseUrl, { waitUntil: 'commit' });
