@@ -185,8 +185,6 @@ async function bootstrap() {
 bootstrap();
 
 process.on('SIGTERM', async () => {
-  const { connectorRegistry } = await import('./modules/connectors/connector.registry');
-  await connectorRegistry.shutdown();
   await prisma.$disconnect();
   process.exit(0);
 });

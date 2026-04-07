@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
-import { LayoutDashboard, FileText, Calendar, CreditCard, Bell, User, Settings, Shield, Activity, Camera } from 'lucide-react';
+import { LayoutDashboard, FileText, Calendar, CreditCard, Bell, User, Settings, Shield, Activity } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard',     label: 'Inicio',         icon: LayoutDashboard },
@@ -18,7 +18,6 @@ const adminItems = [
   { href: '/admin',              label: 'Administración', icon: Settings },
   { href: '/compliance',         label: 'Cumplimiento',   icon: Shield },
   { href: '/admin/connectors',   label: 'Conectores',     icon: Activity },
-  { href: '/admin/screenshots',  label: 'Screenshots',    icon: Camera },
 ];
 
 export function Sidebar() {

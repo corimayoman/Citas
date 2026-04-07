@@ -213,63 +213,6 @@ export const bookingService = {
     });
   },
 
-  async _runSearchLoop(bookingId: string) {
-    const MAX_ATTEMPTS = 20;
-    const RETRY_DELAY_MS = 30_000;
-
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const booking = await prisma.bookingRequest.findUnique({
-        where: { id: bookingId },
-        include: { procedure: { include: { connector: true } }, applicantProfile: true },
-      });
-
-      if (!booking || booking.status !== 'SEARCHING') return;
-
-      const connector = booking.procedure.connector;
-      const adapterConnector = connector ? connectorRegistry.get(connector.slug) : null;
-
-      if (!adapterConnector?.getAvailability) {
-        // Sin conector — simular slot encontrado
-        await bookingService._confirmSlot(booking, {
-          appointmentDate: bookingService._pickDateInRange(booking.preferredDateFrom, booking.preferredDateTo, booking.preferredTimeSlot),
-          appointmentTime: booking.preferredTimeSlot === 'afternoon' ? '15:00' : '10:00',
-          location: 'Oficina central',
-          confirmationCode: `DEMO-${Date.now()}`,
-        });
-        return;
-      }
-
-      try {
-        const dateFrom = booking.preferredDateFrom?.toISOString() ?? new Date().toISOString();
-        const dateTo = booking.preferredDateTo?.toISOString() ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        const slots = await adapterConnector.getAvailability(booking.procedureId, dateFrom, dateTo);
-
-        const filtered = (slots || []).filter((s) => {
-          if (!booking.preferredTimeSlot) return true;
-          const hour = parseInt((s.time || '12:00').split(':')[0], 10);
-          return booking.preferredTimeSlot === 'morning' ? hour < 14 : hour >= 14;
-        });
-
-        if (filtered.length > 0) {
-          const slot = filtered[0];
-          await bookingService._confirmSlot(booking, {
-            appointmentDate: slot.date,
-            appointmentTime: slot.time,
-            location: undefined,
-            confirmationCode: slot.slotId || `REF-${Date.now()}`,
-          });
-          return;
-        }
-      } catch {
-        // reintentar
-      }
-
-      await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-    }
-
-    await prisma.bookingRequest.update({ where: { id: bookingId }, data: { status: 'ERROR' } });
-  },
-
   async _confirmSlot(booking: any, slot: {
     appointmentDate: string | Date;
     appointmentTime: string;
