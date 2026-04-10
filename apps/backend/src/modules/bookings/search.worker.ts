@@ -36,7 +36,8 @@ interface SearchJobData {
 
 // ── Worker processor ─────────────────────────────────────────────────────────
 
-async function processSearchJob(job: Job<SearchJobData>): Promise<void> {
+// Exported for unit testing only — do not call directly in production code.
+export async function processSearchJob(job: Job<SearchJobData>): Promise<void> {
   const { bookingRequestId } = job.data;
   const attemptNumber = job.attemptsMade + 1;
 
@@ -326,7 +327,8 @@ async function processSearchJob(job: Job<SearchJobData>): Promise<void> {
 
 // ── Failed handler (max attempts reached) ────────────────────────────────────
 
-async function onSearchJobFailed(
+// Exported for unit testing only — do not call directly in production code.
+export async function onSearchJobFailed(
   job: Job<SearchJobData> | undefined,
   err: Error,
 ): Promise<void> {

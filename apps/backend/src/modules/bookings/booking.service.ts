@@ -6,6 +6,7 @@ import { notificationService } from '../notifications/notification.service';
 import { encrypt } from '../../lib/crypto';
 import { citaDisponibleHtml, citaConfirmadaHtml } from '../../lib/email-templates';
 import { enqueueSearchJob } from './search.queue';
+import { assertValidTransition, CANCELLABLE_STATUSES, BookingStatus } from './booking-state-machine';
 
 export const bookingService = {
   async createDraft(userId: string, data: {
@@ -223,6 +224,9 @@ export const bookingService = {
     // Deadline para pagar: 24h antes de la cita
     const paymentDeadline = new Date(appointmentDate.getTime() - 24 * 60 * 60 * 1000);
 
+    // ── Validate state transition before touching the DB ─────────────────────
+    assertValidTransition(booking.status as BookingStatus, 'PRE_CONFIRMED', booking.id);
+
     // ── All DB mutations in a single transaction to avoid partial state ──────
     await prisma.$transaction(async (tx) => {
       await tx.bookingRequest.update({
@@ -284,6 +288,8 @@ export const bookingService = {
       include: { procedure: true, appointment: true },
     });
     if (!booking) throw new AppError(404, 'Reserva no encontrada o no está en estado PRE_CONFIRMED', 'BOOKING_NOT_FOUND');
+
+    assertValidTransition('PRE_CONFIRMED', 'CONFIRMED', bookingId);
 
     await prisma.bookingRequest.update({
       where: { id: bookingId },
@@ -406,9 +412,11 @@ export const bookingService = {
 
   async cancelBooking(bookingId: string, userId: string) {
     const booking = await prisma.bookingRequest.findFirst({
-      where: { id: bookingId, userId, status: { in: ['SEARCHING', 'PRE_CONFIRMED', 'DRAFT'] } },
+      where: { id: bookingId, userId, status: { in: [...CANCELLABLE_STATUSES] as BookingStatus[] } },
     });
     if (!booking) throw new AppError(404, 'Reserva no encontrada o no se puede cancelar', 'BOOKING_NOT_FOUND');
+
+    assertValidTransition(booking.status as BookingStatus, 'CANCELLED', bookingId);
 
     await prisma.bookingRequest.update({
       where: { id: bookingId },

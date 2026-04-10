@@ -296,6 +296,7 @@ describe('bookingService._confirmSlot', () => {
   const booking = {
     id: 'booking-1',
     userId: 'user-1',
+    status: 'SEARCHING',
     procedure: { name: 'Trámite Y' },
     preferredDateFrom: null,
     preferredDateTo: null,
