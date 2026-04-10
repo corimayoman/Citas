@@ -19,6 +19,11 @@ jest.mock('../../../lib/prisma', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    // Execute callback immediately using the same mock client
+    $transaction: jest.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => {
+      const { prisma: mockClient } = jest.requireMock('../../../lib/prisma');
+      return fn(mockClient);
+    }),
   },
 }));
 
@@ -291,6 +296,7 @@ describe('bookingService._confirmSlot', () => {
   const booking = {
     id: 'booking-1',
     userId: 'user-1',
+    status: 'SEARCHING',
     procedure: { name: 'Trámite Y' },
     preferredDateFrom: null,
     preferredDateTo: null,

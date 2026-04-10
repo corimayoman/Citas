@@ -28,6 +28,11 @@ jest.mock('../../../lib/prisma', () => ({
     procedure: { findUnique: jest.fn() },
     bookingRequest: { create: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     appointment: { findUnique: jest.fn(), create: jest.fn() },
+    // Execute the callback immediately using the same mock client (no real DB transaction)
+    $transaction: jest.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => {
+      const { prisma: mockClient } = jest.requireMock('../../../lib/prisma');
+      return fn(mockClient);
+    }),
   },
 }));
 jest.mock('../../connectors/connector.registry', () => ({ connectorRegistry: { get: jest.fn() } }));
@@ -191,36 +196,5 @@ describe('Property 3 — _confirmSlot: siempre mueve a PRE_CONFIRMED y no duplic
   });
 });
 
-// ---------------------------------------------------------------------------
-// Property 4: _pickDateInRange siempre retorna una fecha dentro del rango dado
-// ---------------------------------------------------------------------------
-
-describe('Property 4 — _pickDateInRange: fecha resultante siempre cae dentro del rango', () => {
-  const SAMPLES = 30;
-
-  it(`se cumple para ${SAMPLES} rangos aleatorios`, () => {
-    for (let seed = 0; seed < SAMPLES; seed++) {
-      const fromOffset = seed * 2 * 24 * 60 * 60 * 1000; // cada 2 días
-      const rangeLen = (5 + seed) * 24 * 60 * 60 * 1000;  // rango de 5..35 días
-
-      const from = new Date(Date.now() + fromOffset);
-      const to = new Date(from.getTime() + rangeLen);
-      const timeSlot = seed % 3 === 0 ? 'morning' : seed % 3 === 1 ? 'afternoon' : null;
-
-      const result = bookingService._pickDateInRange(from, to, timeSlot);
-
-      expect(result.getTime()).toBeGreaterThanOrEqual(from.getTime());
-      expect(result.getTime()).toBeLessThanOrEqual(to.getTime());
-
-      // Verificar que el horario respeta la preferencia
-      if (timeSlot === 'morning') expect(result.getHours()).toBeLessThan(14);
-      if (timeSlot === 'afternoon') expect(result.getHours()).toBeGreaterThanOrEqual(14);
-    }
-  });
-
-  it('sin rango definido, retorna una fecha futura', () => {
-    const before = Date.now();
-    const result = bookingService._pickDateInRange(null, null, null);
-    expect(result.getTime()).toBeGreaterThan(before);
-  });
-});
+// Note: Property 4 (_pickDateInRange) was removed — the method was legacy code
+// that was never called in production and has been deleted from booking.service.ts.

@@ -6,6 +6,7 @@ import { notificationService } from '../notifications/notification.service';
 import { encrypt } from '../../lib/crypto';
 import { citaDisponibleHtml, citaConfirmadaHtml } from '../../lib/email-templates';
 import { enqueueSearchJob } from './search.queue';
+import { assertValidTransition, CANCELLABLE_STATUSES, BookingStatus } from './booking-state-machine';
 
 export const bookingService = {
   async createDraft(userId: string, data: {
@@ -223,42 +224,49 @@ export const bookingService = {
     // Deadline para pagar: 24h antes de la cita
     const paymentDeadline = new Date(appointmentDate.getTime() - 24 * 60 * 60 * 1000);
 
-    await prisma.bookingRequest.update({
-      where: { id: booking.id },
-      data: {
-        status: 'PRE_CONFIRMED',
-        selectedDate: appointmentDate,
-        selectedTime: slot.appointmentTime,
-        paymentDeadline,
-        externalRef: slot.confirmationCode,
-      },
-    });
+    // ── Validate state transition before touching the DB ─────────────────────
+    assertValidTransition(booking.status as BookingStatus, 'PRE_CONFIRMED', booking.id);
 
-    // Audit: SEARCHING → PRE_CONFIRMED
-    await auditService.log({
-      userId: booking.userId,
-      action: 'UPDATE',
-      entityType: 'BookingRequest',
-      entityId: booking.id,
-      before: { status: 'SEARCHING' },
-      after: { status: 'PRE_CONFIRMED', selectedDate: appointmentDate.toISOString(), selectedTime: slot.appointmentTime, externalRef: slot.confirmationCode },
-    });
-
-    // Guardar cita internamente (oculta hasta que pague)
-    const existing = await prisma.appointment.findUnique({ where: { bookingRequestId: booking.id } });
-    if (!existing) {
-      await prisma.appointment.create({
+    // ── All DB mutations in a single transaction to avoid partial state ──────
+    await prisma.$transaction(async (tx) => {
+      await tx.bookingRequest.update({
+        where: { id: booking.id },
         data: {
-          bookingRequestId: booking.id,
-          confirmationCode: slot.confirmationCode,
-          appointmentDate,
-          appointmentTime: slot.appointmentTime,
-          location: slot.location,
-          instructions: 'Traé tu documentación original.',
+          status: 'PRE_CONFIRMED',
+          selectedDate: appointmentDate,
+          selectedTime: slot.appointmentTime,
+          paymentDeadline,
+          externalRef: slot.confirmationCode,
         },
       });
-    }
 
+      // Audit: SEARCHING → PRE_CONFIRMED
+      await auditService.log({
+        userId: booking.userId,
+        action: 'UPDATE',
+        entityType: 'BookingRequest',
+        entityId: booking.id,
+        before: { status: 'SEARCHING' },
+        after: { status: 'PRE_CONFIRMED', selectedDate: appointmentDate.toISOString(), selectedTime: slot.appointmentTime, externalRef: slot.confirmationCode },
+      });
+
+      // Guardar cita internamente (oculta hasta que pague)
+      const existing = await tx.appointment.findUnique({ where: { bookingRequestId: booking.id } });
+      if (!existing) {
+        await tx.appointment.create({
+          data: {
+            bookingRequestId: booking.id,
+            confirmationCode: slot.confirmationCode,
+            appointmentDate,
+            appointmentTime: slot.appointmentTime,
+            location: slot.location,
+            instructions: 'Traé tu documentación original.',
+          },
+        });
+      }
+    });
+
+    // ── Notification outside transaction (external call — must not block rollback) ──
     await notificationService.send({
       userId: booking.userId,
       title: '¡Cita disponible! Realizá el pago para confirmarla',
@@ -273,14 +281,6 @@ export const bookingService = {
     });
   },
 
-  _pickDateInRange(from: Date | null, to: Date | null, timeSlot: string | null): Date {
-    const base = from ? new Date(from) : new Date();
-    base.setDate(base.getDate() + 3);
-    if (to && base > to) base.setTime(to.getTime() - 24 * 60 * 60 * 1000);
-    base.setHours(timeSlot === 'afternoon' ? 15 : 10, 0, 0, 0);
-    return base;
-  },
-
   // Llamado después del pago en PRE_CONFIRMED → mueve a CONFIRMED y revela detalles
   async confirmAfterPayment(bookingId: string, userId: string) {
     const booking = await prisma.bookingRequest.findFirst({
@@ -288,6 +288,8 @@ export const bookingService = {
       include: { procedure: true, appointment: true },
     });
     if (!booking) throw new AppError(404, 'Reserva no encontrada o no está en estado PRE_CONFIRMED', 'BOOKING_NOT_FOUND');
+
+    assertValidTransition('PRE_CONFIRMED', 'CONFIRMED', bookingId);
 
     await prisma.bookingRequest.update({
       where: { id: bookingId },
@@ -410,9 +412,11 @@ export const bookingService = {
 
   async cancelBooking(bookingId: string, userId: string) {
     const booking = await prisma.bookingRequest.findFirst({
-      where: { id: bookingId, userId, status: { in: ['SEARCHING', 'PRE_CONFIRMED', 'DRAFT'] } },
+      where: { id: bookingId, userId, status: { in: [...CANCELLABLE_STATUSES] as BookingStatus[] } },
     });
     if (!booking) throw new AppError(404, 'Reserva no encontrada o no se puede cancelar', 'BOOKING_NOT_FOUND');
+
+    assertValidTransition(booking.status as BookingStatus, 'CANCELLED', bookingId);
 
     await prisma.bookingRequest.update({
       where: { id: bookingId },

@@ -91,14 +91,22 @@ export const circuitBreakerService = {
 
   /**
    * Returns true if the circuit is open (connector should NOT be used).
+   * Falls back to `false` (allow) on DB errors to avoid crashing the SearchWorker —
+   * the connector will still be rate-limited and may trip its own circuit breaker.
    */
   async isOpen(connectorId: string): Promise<boolean> {
-    const connector = await prisma.connector.findUnique({
-      where: { id: connectorId },
-      select: { status: true },
-    });
-
-    return connector?.status === ConnectorStatus.SUSPENDED;
+    try {
+      const connector = await prisma.connector.findUnique({
+        where: { id: connectorId },
+        select: { status: true },
+      });
+      return connector?.status === ConnectorStatus.SUSPENDED;
+    } catch (err) {
+      logger.error(`CircuitBreaker: isOpen() DB error for connector ${connectorId} — defaulting to false`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
   },
 
   /**

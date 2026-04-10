@@ -26,5 +26,7 @@ export function decrypt(encryptedText: string): string {
 }
 
 export function hashSensitive(value: string): string {
-  return crypto.createHash('sha256').update(value + process.env.HASH_SALT || '').digest('hex');
+  // Correct parenthesisation: concatenate value with salt, then hash.
+  // Without parens the `||` would bind to the whole expression, not just the salt.
+  return crypto.createHash('sha256').update(value + (process.env.HASH_SALT ?? '')).digest('hex');
 }
