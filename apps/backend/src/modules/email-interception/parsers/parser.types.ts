@@ -2,11 +2,16 @@
  * Shared types and helpers for email parsers.
  */
 
+export type EmailType = 'confirmation' | 'cancellation' | 'reminder' | 'unknown';
+
 export interface ParsedEmailResult {
   confirmationCode: string;
   appointmentDate: string;
   appointmentTime: string;
   location?: string;
+  emailType?: EmailType;
+  tramite?: string;
+  nif?: string;
 }
 
 /**
@@ -20,9 +25,11 @@ export const GENERIC_PATTERNS = {
     /confirmation[:\s]*([A-Z0-9-]+)/i,
   ],
   date: [
+    // These patterns must capture the FULL date string as group 1 (used with matchFirst).
+    // Long-form "15 de enero de 2026" is handled by parseSpanishDate(body) fallback
+    // in each parser — do NOT add multi-group patterns here.
     /fecha[:\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/i,
     /d[ií]a[:\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/i,
-    /(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(?:de\s+)?(\d{4})/i,
   ],
   time: [
     /hora[:\s]*(\d{1,2}:\d{2})/i,
@@ -72,4 +79,45 @@ export function parseSpanishDate(text: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Detect the type of email: confirmation, cancellation, reminder, or unknown.
+ * Checks both subject and body text.
+ */
+export function detectEmailType(subject: string, body: string): EmailType {
+  const text = `${subject} ${body}`.toLowerCase();
+
+  const cancellationKeywords = [
+    'cancelad', 'cancelaci', 'anulad', 'anulaci', 'cancel·lad',
+  ];
+  const reminderKeywords = [
+    'recordatori', 'recordamos', 'le recordamos', 'reminder',
+    'próxima cita', 'proxima cita', 'tiene una cita',
+  ];
+  const confirmationKeywords = [
+    'confirmaci', 'confirmad', 'confirmamos', 'ha sido confirm',
+    'cita concedida', 'cita reservada', 'cita previa concedida',
+  ];
+
+  if (cancellationKeywords.some((k) => text.includes(k))) return 'cancellation';
+  if (reminderKeywords.some((k) => text.includes(k))) return 'reminder';
+  if (confirmationKeywords.some((k) => text.includes(k))) return 'confirmation';
+
+  return 'unknown';
+}
+
+/**
+ * Extract a Spanish NIF/NIE from text.
+ * NIF: 8 digits + letter. NIE: X/Y/Z + 7 digits + letter.
+ */
+export function extractNif(text: string): string | null {
+  const nifPattern = /\b(?:NIF|NIE|DNI)[:\s]*([XYZ]?\d{7,8}[A-Z])\b/i;
+  const m = text.match(nifPattern);
+  if (m) return m[1].toUpperCase();
+
+  // Bare NIF without label
+  const barePattern = /\b([XYZ]\d{7}[A-Z]|\d{8}[A-Z])\b/;
+  const bare = text.match(barePattern);
+  return bare ? bare[1].toUpperCase() : null;
 }
