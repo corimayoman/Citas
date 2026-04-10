@@ -19,6 +19,11 @@ jest.mock('../../../lib/prisma', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    // Execute callback immediately using the same mock client
+    $transaction: jest.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => {
+      const { prisma: mockClient } = jest.requireMock('../../../lib/prisma');
+      return fn(mockClient);
+    }),
   },
 }));
 

@@ -1,3 +1,11 @@
+// Mock crypto before auth.service is imported — crypto.ts throws at module load
+// if ENCRYPTION_KEY is missing, so we must intercept it early.
+jest.mock('../../../lib/crypto', () => ({
+  encrypt: jest.fn().mockReturnValue('encrypted-value'),
+  decrypt: jest.fn().mockReturnValue('decrypted-secret'),
+  hashSensitive: jest.fn().mockImplementation((v: string) => `hashed:${v}`),
+}));
+
 import { authService } from '../auth.service';
 import { prisma } from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';

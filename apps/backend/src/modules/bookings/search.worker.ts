@@ -158,18 +158,24 @@ async function processSearchJob(job: Job<SearchJobData>): Promise<void> {
         if (bookResult.success) {
           success = true;
 
-          // Record successful attempt
-          await prisma.bookingAttempt.create({
-            data: {
-              bookingRequestId,
-              connectorId: connector.id,
-              attemptNumber,
-              success: true,
-              response: bookResult as object,
-              responseTimeMs,
-              httpStatusCode,
-            },
+          // Record successful attempt — guard against duplicates on BullMQ retry
+          const existingAttempt = await prisma.bookingAttempt.findFirst({
+            where: { bookingRequestId, attemptNumber },
+            select: { id: true },
           });
+          if (!existingAttempt) {
+            await prisma.bookingAttempt.create({
+              data: {
+                bookingRequestId,
+                connectorId: connector.id,
+                attemptNumber,
+                success: true,
+                response: bookResult as object,
+                responseTimeMs,
+                httpStatusCode,
+              },
+            });
+          }
 
           // Move to PRE_CONFIRMED via existing _confirmSlot
           await bookingService._confirmSlot(
@@ -192,16 +198,23 @@ async function processSearchJob(job: Job<SearchJobData>): Promise<void> {
         // Connector can't book — use _confirmSlot directly
         success = true;
 
-        await prisma.bookingAttempt.create({
-          data: {
-            bookingRequestId,
-            connectorId: connector.id,
-            attemptNumber,
-            success: true,
-            responseTimeMs,
-            httpStatusCode,
-          },
+        // Guard against duplicates on BullMQ retry
+        const existingAttempt = await prisma.bookingAttempt.findFirst({
+          where: { bookingRequestId, attemptNumber },
+          select: { id: true },
         });
+        if (!existingAttempt) {
+          await prisma.bookingAttempt.create({
+            data: {
+              bookingRequestId,
+              connectorId: connector.id,
+              attemptNumber,
+              success: true,
+              responseTimeMs,
+              httpStatusCode,
+            },
+          });
+        }
 
         await bookingService._confirmSlot(
           { ...booking, procedure: booking.procedure },
@@ -218,17 +231,24 @@ async function processSearchJob(job: Job<SearchJobData>): Promise<void> {
     }
 
     // 6. No slot found (or book failed) — record attempt and throw to trigger retry
-    await prisma.bookingAttempt.create({
-      data: {
-        bookingRequestId,
-        connectorId: connector.id,
-        attemptNumber,
-        success: false,
-        errorMessage: errorMessage ?? 'No matching slots found',
-        responseTimeMs,
-        httpStatusCode,
-      },
+    // Guard against duplicates on BullMQ retry
+    const existingFailedAttempt = await prisma.bookingAttempt.findFirst({
+      where: { bookingRequestId, attemptNumber },
+      select: { id: true },
     });
+    if (!existingFailedAttempt) {
+      await prisma.bookingAttempt.create({
+        data: {
+          bookingRequestId,
+          connectorId: connector.id,
+          attemptNumber,
+          success: false,
+          errorMessage: errorMessage ?? 'No matching slots found',
+          responseTimeMs,
+          httpStatusCode,
+        },
+      });
+    }
 
     await circuitBreakerService.recordSuccess(connector.id);
 

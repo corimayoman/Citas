@@ -42,8 +42,11 @@ export class RateLimiter {
     const deadline = Date.now() + maxWaitMs;
     while (!(await this.tryAcquire())) {
       if (Date.now() >= deadline) {
-        logger.warn(`RateLimiter(${this.connectorSlug}): timed out waiting for token after ${maxWaitMs}ms`);
-        return; // proceed anyway rather than block forever
+        const msg = `RateLimiter(${this.connectorSlug}): timed out waiting for token after ${maxWaitMs}ms`;
+        logger.warn(msg);
+        // Throw instead of silently proceeding — a caller that bypasses the rate
+        // limit could flood the target portal and trigger a ban or DDOS.
+        throw new Error(msg);
       }
       await sleep(POLL_INTERVAL_MS);
     }

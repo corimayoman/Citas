@@ -8,6 +8,7 @@ import { AuthPayload } from '../../middleware/auth';
 import { auditService } from '../audit/audit.service';
 import { sendMail } from '../../lib/mailer';
 import { verificacionEmailHtml } from '../../lib/email-templates';
+import { encrypt, decrypt } from '../../lib/crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '15m') as SignOptions['expiresIn'];
@@ -52,7 +53,8 @@ export const authService = {
 
     if (user.mfaEnabled) {
       if (!mfaToken) throw new AppError(200, 'MFA requerido', 'MFA_REQUIRED');
-      const isValidMfa = authenticator.verify({ token: mfaToken, secret: user.mfaSecret! });
+      const rawSecret = decrypt(user.mfaSecret!);
+      const isValidMfa = authenticator.verify({ token: mfaToken, secret: rawSecret });
       if (!isValidMfa) throw new AppError(401, 'Código MFA inválido', 'INVALID_MFA');
     }
 
@@ -95,7 +97,8 @@ export const authService = {
 
   async setupMfa(userId: string) {
     const secret = authenticator.generateSecret();
-    await prisma.user.update({ where: { id: userId }, data: { mfaSecret: secret } });
+    // Store encrypted — never persist TOTP secrets in plaintext
+    await prisma.user.update({ where: { id: userId }, data: { mfaSecret: encrypt(secret) } });
     const otpauth = authenticator.keyuri(userId, 'GestorCitas', secret);
     return { secret, otpauth };
   },
@@ -103,7 +106,8 @@ export const authService = {
   async enableMfa(userId: string, token: string) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user?.mfaSecret) throw new AppError(400, 'MFA no configurado', 'MFA_NOT_SETUP');
-    const valid = authenticator.verify({ token, secret: user.mfaSecret });
+    const rawSecret = decrypt(user.mfaSecret);
+    const valid = authenticator.verify({ token, secret: rawSecret });
     if (!valid) throw new AppError(401, 'Código MFA inválido', 'INVALID_MFA');
     await prisma.user.update({ where: { id: userId }, data: { mfaEnabled: true } });
     return { enabled: true };
